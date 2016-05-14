@@ -1,0 +1,130 @@
+Analisi del secondo progetto di architettura degli elaboratori
+Università degli studi di firenze - Scienze dell'informatica
+Busiello Salvatore - Mauro Matteo - Milici Lorenzo (in ordine alfabetico)
+**************************************************************
+                  PROCEDURE NECESSARIE  **********************
+**************************************************************
+
+/***
+**************************************** STAMPATASK ****************************************
+
+Riceve in input l'indirizzo di memoria del task, e sapendo che il task occupa uno spazio
+definito di memoria, si occupa solo di scorrere questo spazio e stamparlo in maniera "formattata"
+**/
+void :: stampaTask(<indmemtask>)
+
+          Si occuperà di stampare in maniera formattata il task
+
+                    Task : ##
+                        Nome : ##
+                        Priorità : ##                                   <-- output a video
+                        Esecuzioni rimanenti : ##
+                    --------------------------------
+
+++--++--++--++--++--++--++--++--+--+--+--+--+--+--+--++--++--+--+--+--+--+--+--+--++--++--+--+--+--
+/***
+**************************************** RICERCA ****************************************
+
+Riceve in input l'id del task che stiamo cercando, e si occuperà di cercare in
+tutta la lista l'indirizzo di memoria del task in questione
+una volta trovato, ci restituirà in due "variabili" l'indirizzo del task precedente e l'indirizzo
+del task cercato
+
+Ipotizziamo per gli esempi
+$v0 = indirizzo task precedente
+$v1 = indirizzo task corrente (cercato)
+**/
+
+  :: ricerca(<idtask>)
+
+        Scorro la lista fino a che non trovo un elemento che ha come id, l'id cercato.
+        a quel punto, memorizzo il precedente e il corrente in due variabili
+        Mentre scorro, devo tenere un "puntatore" all'elemento precedente
+
+        [ elmN ] -> [ elmN+1 ] -> [ elmN+1 ]
+          ^            ^
+          |__v0        |__v1
+
+++--++--++--++--++--++--++--++--+--+--+--+--+--+--+--++--++--+--+--+--+--+--+--+--++--++--+--+--+--
+
+/***
+******************************* PROCEDURA DI ORDINAMENTO unica *******************************
+
+Questa procedura prende in ingresso solo due parametri, il primo indica l'offset necessario a partire
+dall'indirizzo di memoria del task, fino all'argomento per la quale vogliamo ordinare.
+Il secondo parametro indica il tipo di ordinamento, se deve essere crescente o decrescente.
+
+------------------------___ 0                            8700
+|              id task |___100      || ESEMPIO ||        12
+|             priorita |___200                           2
+| esecuzioni rimanenti |___300                           44
+|      nodo successivo |___400                           49800
+-----------------------
+|______________nometask|___500                           pablo
+**/
+
+void :: multisort(<offset argomento>)
+
+                  //  offset argomento == 100 allora ordino per priorità quindi in maniera decrescente
+                 //                   == 200 ordino per esecuzioni rimanenti
+
+                  if(<offset argomento>==1){
+                      if((8700+<offsetargomento>)<(49800+<offsetargomento>))
+                          swap
+                  else
+                  {
+                      if((8700+<offsetargomento>)>(49800+<offsetargomento>))
+                          swap
+                  }
+
+++--++--++--++--++--++--++--++--+--+--+--+--+--+--+--++--++--+--+--+--+--+--+--+--++--++--+--+--+--
+++--++--++--++--++--++--++--++--+--+--+--+--+--+--+--++--++--+--+--+--+--+--+--+--++--++--+--+--+--
+++--++--++--++--++--++--++--++--+--+--+--+--+--+--+--++--++--+--+--+--+--+--+--+--++--++--+--+--+--
+
+          ESECUZIONE DELLE VOCI DI MENU
+
+          7 -> syscall per uscire dal sistema
+
+          6 -> chiamo la procedura ::selettoreordinamenti()::
+                                   gli faccio inserire il tipo, e poi chiamo la PDOU
+
+          5 -> chiamo la ::cambiapriorià():: prendo l'id del task, faccio la ricerca e cambio
+                            |
+                            |_ ricerca(33)
+                                  |
+                                  |__ $v1.priorità = <nuovaprioritàinserita>
+          4 -> chiamo la ::eliminatask():: prendo l'id, faccio la ricerca ed elimino
+                            |
+                            |_ ricerca(33)
+                                  |
+                                  |__ $v0.next = $v1.next
+          3|2 -> chiamo la ::eseguitask(<idtask>)::
+                                  |
+                                  |__ if(id!= <indirizzolistaglobale.id>)
+                                           $v1= ricerca(id)
+                                      else
+                                           $v1= <indirizzolistaglobale>
+
+                                      if($v1.esecuzionirimanenti==1)
+                                          stampa($v1.id)
+                                          rimuovi($v1.id)
+                                      else
+                                          stampa($v1.id)
+                                          $v1.id=$v1.id-1
+
+                                      multisort($tipodiordinamento)
+                                      // $tipodiordinamento è l'offset salvato a livello globale che mi indica se è un ordinamento per priorità o per esecuzioni
+
+
+
+
+
+
+
+
+
+
+
+
+
+
