@@ -38,14 +38,20 @@ loop1:
  lw $t5,4($t3)     #carico il byte 4, quindi la priorita del task
  lw $t3,6($t3)     #t3 attualmente prende l'indirizzo nella cella successiva della lista
  lw $t6,4($t3)     #carico il byte 4, quindi la priorita del task (successivo)
+ lw $t7,6($t7)     #sposto la sentinella di un elemento 
  blt $t5,$t6,loop1 #if $t5 < $t6, goto loop1
- lw $t7,4($t7)     #sposto la sentinella di un elemento 
  beq $t5,$t6,swapbyid   #IPOTESI non ci va messo 4($t5),4($t6) ???? io voglio controllare
-		    #ipotizziamo di partire con 1-2-3-4
- sw 4($t7),4($t5)   # il successivo di 1 e'3
- sw 4($t5),4($t6)   # il successivo di 2 e' 4
- sw 4($t6),$t5      # il successivo di 3 e' 2
-                    #arriviamo alla fine con 1-3-2-4
+	        # Ipotizziamo di partire con 1-2-3-4 / A-B-C-D
+		# t7 - A
+		# t5 - B
+		# t6 - C    
+		# t8 - temporaneo - D
+ lw $t8,6($t6)    # Carico temporaneamente il successivo di C in $t8
+ sw $t6,6($t7)    # il successivo di 1 e'3  A->C
+ sw $t8,6($t5)    # il successivo di 2 e' 4 B->D
+ sw $t5,6($t6)    # il successivo di 3 e' 2 C->B
+
+                    #arriviamo alla fine con 1-3-2-4    A-C-B-D
  bnez $t2,loop1     #if $t2 is not zero, to go loop1
 
 # La swapbyid viene chiamata nel caso due elementi abbiano stessa priorità
