@@ -22,7 +22,12 @@ length: .word 0
 # $t1 = contatore ciclo esterno (loop2)
 # $t2 = contatore ciclo interno (loop1)
 # $t3 = puntatore del precedente
-# $t4 = 
+# $t4 = flag per gestire il caso in cui i primi due elementi della lista sono fuori posto
+# $t5 = priorità del primo nodo incontrato durante una singola iterazione
+# $t6 = priorità del secondo nodo incontrato durante una singola iterazione
+# $t7 = indirzzo del secondo nodo della precedente iterazione
+# $t8 = registro di appoggio per salvare l'indirizzo del primo nodo incontrato durante una singola iterazione
+# $t9 = registro di appoggio per salvare l'indirizzo del secondo nodo incontrato durante una singola iterazione
 
 bubbleSortByPriority:
 	lw $t1, length      # carico la lunghezza della lista
