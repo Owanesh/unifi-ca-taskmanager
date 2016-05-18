@@ -1,6 +1,7 @@
 .data 
 
 length: .word 0
+
 item1: .asciiz "1) Inserire un nuovo task"
 item2: .asciiz "2) Eseguire il task in testa alla coda"
 item3: .asciiz "3) Esegui uno specifico task"
@@ -8,9 +9,9 @@ item4: .asciiz "4) Elimina uno specifico task"
 item5: .asciiz "5) Modifica priorita di uno specifico task"
 item6: .asciiz "6) Cambia politica di scheduling"
 item7: .asciiz "7) Esci dal programma"
-
-
-		
+tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
+ 
+	
 
 #------------
 # STRUTTURA DI UN TASK (in byte) TOT 20byte
@@ -190,10 +191,93 @@ main:
 #++--++--++--++--++--++--++   PRINT TASK PROCEDURE    ===============================
 #====================================================================================
 
+# PRINTALL
+#  \_stampo la tablehead
+#   \__ faccio un for da length a 0
+#     \__ stampo i 20byte
 
+ 
+ 
+
+
+printSingleTask: 
+	la $a0, tableHead   # stampo la tablehead
+	li $v0,4
+	syscall 
+	lw $t1, length      # carico la lunghezza della lista
+	loopScorriLista:
+ 		addi $t1, $t1, -1   # inizializzo contatore $t1  a length-1
+ 		beqz $t1, noop  #se $t1==0 allora esco dal ciclo esterno, ho terminato la stampa
+
+noop: #aspè, devo rivedere sui pdf delle cose..
+
+	
 
 
 #====================================================================================
 #++--++--++--++--++--++--++   PRINT MAIN MENU PROCEDURE    ==========================
 #====================================================================================
-
+printMainMenu:
+	la $a0 item1    # Nell'indirizzo a0 ci carico la stringa "Inserisci un nuovo task"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
+	la $a0 item2    # Nell'indirizzo a0 ci carico la stringa "Eseguire il task in testa alla coda"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
+        la $a0 item3    # Nell'indirizzo a0 ci carico la stringa "Esegui uno specifico task"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
+	la $a0 item4    # Nell'indirizzo a0 ci carico la stringa "Elimina uno specifico task"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall	
+	la $a0 item5    # Nell'indirizzo a0 ci carico la stringa "Modifica priorita di uno specifico task"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
+	la $a0 item6    # Nell'indirizzo a0 ci carico la stringa "Cambia politica di scheduling"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
+	la $a0 item7    # Nell'indirizzo a0 ci carico la stringa "Esci dal programma"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+        li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
