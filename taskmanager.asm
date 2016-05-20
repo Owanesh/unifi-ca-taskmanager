@@ -1,7 +1,9 @@
 .data 
 
 length: .word 0
-
+head: .word 0
+flagScheduling: .byte 0
+jump_table: .space 28 # jump table a 7 word, corrispondenti alle 7 scelte del menù
 item1: .asciiz "1) Inserire un nuovo task"
 item2: .asciiz "2) Eseguire il task in testa alla coda"
 item3: .asciiz "3) Esegui uno specifico task"
@@ -9,11 +11,12 @@ item4: .asciiz "4) Elimina uno specifico task"
 item5: .asciiz "5) Modifica priorita di uno specifico task"
 item6: .asciiz "6) Cambia politica di scheduling"
 item7: .asciiz "7) Esci dal programma"
+strErrore: .ascii "Scelta errata! "
+strInserimento: .asciiz "Inserisci scelta: "
 tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
  
-	
-
-#------------
+ 
+#-----------------------------------------------
 # STRUTTURA DI UN TASK (in byte) TOT 20byte
 # 4 byte = Id
 # 1 byte = Priorita
@@ -24,7 +27,106 @@ tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
 #-----------------------------------------------
 
 
-#-------------------- PROCEDURA DI ORDINAMENTO BUBBLESORT ----------------------
+.text
+.globl main
+#====================================================================================
+#++--++--++--++--++--++--++   MAIN PROCEDURE ========================================
+#====================================================================================
+
+main:  
+# prepara la jump_table con gli indirizzi delle case actions
+	la $t1, jump_table
+	la $t0, case1  
+	sw $t0, 0($t1)
+ 	la $t0, case2  
+	sw $t0, 4($t1)
+	la $t0, case3	  
+	sw $t0, 8($t1)	  
+	la $t0, case4	  
+	sw $t0, 12($t1)
+	la $t0, case5	  
+	sw $t0, 16($t1)
+	la $t0, case6	  
+	sw $t0, 20($t1)
+	la $t0, case7	  
+	sw $t0, 24($t1)
+
+loopMainMenu:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printMainMenu	#stampo il menù principale
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+choice:
+        # l'utente digita un'opzione	  
+        li $v0, 5		# legge intero digitato
+	syscall
+	move $t2, $v0   	# $t1 = opzione digitata
+	
+	# controllo validità della scelta 
+	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
+	bne  $t0, $zero, choice_err # errore se $t0==1
+	li   $t0, 7
+	sle  $t0, $t2, $t0	#$t0=1 se scelta<=7
+	beq  $t0, $zero, choice_err # errore se $t0==0
+
+branch_case:
+	# se arrivo qui l'opzione digitata era corretta
+	addi $t2, $t2, -1 # tolgo 1 da scelta perche' prima azione nella jump table (in posizione 0) corrisponde alla prima scelta del case
+	add $t0, $t2, $t2
+	add $t0, $t0, $t0 # ho calcolato (scelta-1) * 4
+	add $t0, $t0, $t1 # sommo all'indirizzo base della JAT l'offset appena calcolato
+	lw $t0, 0($t0)    # $t0 = indirizzo a cui devo saltare
+
+	jr $t0 		  # salto all'indirizzo calcolato
+
+case1: # Inserimento nuovo task
+	#salva sempre $t1 (base JAT)
+	j loopMainMenu # ritorna alla richiesta di inserimento
+
+case2: # Esecuzione task in testa alla coda
+	#salva sempre $t1 (base JAT)
+	j loopMainMenu # ritorna alla richiesta di inserimento
+
+case3: # Esecuzione specifico task"
+	#salva sempre $t1 (base JAT)  
+	j loopMainMenu # ritorna alla richiesta di inserimento
+	
+case4: # Eliminazione specifico task
+
+	   
+	j loopMainMenu # ritorna alla richiesta di inserimento
+	
+case5: # Modifica priorità di uno specifico task
+
+	j loopMainMenu # ritorna alla richiesta di inserimento
+	
+case6: # Cambia politica di scheduling
+	lw $t0, flagScheduling   #carico variabile flag, indica quale scehl	
+	beq 
+	j loopMainMenu # ritorna alla richiesta di inserimento
+	  	  
+case7: # Termina programma
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+choice_err: 
+	# stampa la stringa d'errore
+	li $v0, 4  
+     	la $a0, strErrore 
+      	syscall 						  		  		  	  
+      	j choice # ritorna alla richiesta di inserimento
+		
+	
+
+
+
+
+
+#====================================================================================
+#++--++--   PROCEDURA DI ORDINAMENTO BUBBLESORT PER PRIOIRTA' =======================
+#====================================================================================
 
 # $t0 = puntatore di appoggio per scorrere la lista
 # $t1 = contatore ciclo esterno (loop2)
@@ -106,7 +208,7 @@ bubbleSortByPriority:
 
 
 #====================================================================================
-#========================= ORDINAMENTO PER ESECUIZIONI RIMANENTI
+#++--++--   PROCEDURA DI ORDINAMENTO BUBBLESORT PER ESECUZIONI RIMANENTI ===========
 #====================================================================================
 
 bubbleSortByRemainingExecution:
@@ -176,12 +278,6 @@ bubbleSortByRemainingExecution:
 	exitLoopEsternoExec:
 
 
-#====================================================================================
-#++--++--++--++--++--++--++   MAIN PROCEDURE ========================================
-#====================================================================================
-
-main:
-
 
 
 
@@ -218,66 +314,61 @@ noop: #aspè, devo rivedere sui pdf delle cose..
 #++--++--++--++--++--++--++   PRINT MAIN MENU PROCEDURE    ==========================
 #====================================================================================
 printMainMenu:
+
+  	li $v0, 11	#stampo un ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	
 	la $a0 item1    # Nell'indirizzo a0 ci carico la stringa "Inserisci un nuovo task"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall
+	
 	la $a0 item2    # Nell'indirizzo a0 ci carico la stringa "Eseguire il task in testa alla coda"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall
+
         la $a0 item3    # Nell'indirizzo a0 ci carico la stringa "Esegui uno specifico task"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall
+
 	la $a0 item4    # Nell'indirizzo a0 ci carico la stringa "Elimina uno specifico task"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall	
+	
 	la $a0 item5    # Nell'indirizzo a0 ci carico la stringa "Modifica priorita di uno specifico task"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall
+
 	la $a0 item6    # Nell'indirizzo a0 ci carico la stringa "Cambia politica di scheduling"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall
+
 	la $a0 item7    # Nell'indirizzo a0 ci carico la stringa "Esci dal programma"
   	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
   	syscall 
         li $v0, 11	#stampo un ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
-	li $v0, 11
-	addi $a0, $zero, 13
-	syscall
+	
+	la $a0 strInserimento    # Nell'indirizzo a0 ci carico la stringa "Esci dal programma"
+  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+  	syscall 
+	jr $ra
