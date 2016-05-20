@@ -2,7 +2,8 @@
 
 length: .word 0
 head: .word 0
-flagScheduling: .byte 0
+contatoreID: .word 1
+flagScheduling: .word 0		#default==0 (scheduling per priorità)
 jump_table: .space 28 # jump table a 7 word, corrispondenti alle 7 scelte del menù
 item1: .asciiz "1) Inserire un nuovo task"
 item2: .asciiz "2) Eseguire il task in testa alla coda"
@@ -13,7 +14,13 @@ item6: .asciiz "6) Cambia politica di scheduling"
 item7: .asciiz "7) Esci dal programma"
 strErrore: .ascii "Scelta errata! "
 strInserimento: .asciiz "Inserisci scelta: "
+strLinea: .asciiz "-------------------------------------------------------"
+strInsPriorita: .asciiz "Inserisci Priorità: "
+strInsNome: .asciiz "Inserisci Nome: "
+strInsExec: .asciiz "Inserisci numero di esecuzioni: "
+strIsEmpty: .asciiz "Errore! La lista è vuota"
 tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
+
  
  
 #-----------------------------------------------
@@ -30,26 +37,26 @@ tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
 .text
 .globl main
 #====================================================================================
-#++--++--++--++--++--++--++   MAIN PROCEDURE ========================================
+#++--++--++--++--++--++--++ PROCEDURA MAIN   ========================================
 #====================================================================================
 
 main:  
 # prepara la jump_table con gli indirizzi delle case actions
-	la $t1, jump_table
+	la $s0, jump_table
 	la $t0, case1  
-	sw $t0, 0($t1)
+	sw $t0, 0($s0)
  	la $t0, case2  
-	sw $t0, 4($t1)
+	sw $t0, 4($s0)
 	la $t0, case3	  
-	sw $t0, 8($t1)	  
+	sw $t0, 8($s0)	  
 	la $t0, case4	  
-	sw $t0, 12($t1)
+	sw $t0, 12($s0)
 	la $t0, case5	  
-	sw $t0, 16($t1)
+	sw $t0, 16($s0)
 	la $t0, case6	  
-	sw $t0, 20($t1)
+	sw $t0, 20($s0)
 	la $t0, case7	  
-	sw $t0, 24($t1)
+	sw $t0, 24($s0)
 
 loopMainMenu:
 	addi $sp, $sp, -4
@@ -59,9 +66,10 @@ loopMainMenu:
 	addi $sp, $sp, 4
 choice:
         # l'utente digita un'opzione	  
-        li $v0, 5		# legge intero digitato
+        li $v0, 12		# legge carattere digitato
 	syscall
-	move $t2, $v0   	# $t1 = opzione digitata
+	move $t2, $v0   	# $t2 = opzione digitata
+	addi $t2, $t2, -48	#decremento di 48 il valore ASCII del carattere digitato
 	
 	# controllo validità della scelta 
 	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
@@ -75,7 +83,7 @@ branch_case:
 	addi $t2, $t2, -1 # tolgo 1 da scelta perche' prima azione nella jump table (in posizione 0) corrisponde alla prima scelta del case
 	add $t0, $t2, $t2
 	add $t0, $t0, $t0 # ho calcolato (scelta-1) * 4
-	add $t0, $t0, $t1 # sommo all'indirizzo base della JAT l'offset appena calcolato
+	add $t0, $t0, $s0 # sommo all'indirizzo base della JAT l'offset appena calcolato
 	lw $t0, 0($t0)    # $t0 = indirizzo a cui devo saltare
 
 	jr $t0 		  # salto all'indirizzo calcolato
@@ -102,8 +110,46 @@ case5: # Modifica priorità di uno specifico task
 	j loopMainMenu # ritorna alla richiesta di inserimento
 	
 case6: # Cambia politica di scheduling
-	lw $t0, flagScheduling   #carico variabile flag, indica quale scehl	
-	beq 
+
+	# controllo se la lista è vuota
+	addi $sp,$sp, -4
+	sw $ra, 0($sp)
+	jal isEmpty
+	lw $ra, 0($sp)
+	addi $sp,$sp, 4
+	beq $v0, $zero, return6	#se $v0==0 allora la lista è vuota, ritorno al menù principale
+	
+	
+	loopSchedulingChoice:
+	# l'utente digita un'opzione	  
+        li $v0, 12		# legge carattere digitato
+	syscall
+	move $t2, $v0   	# $t2 = opzione digitata
+	addi $t2, $t2, -49	#decremento di 49 il valore ASCII del carattere digitato (così digitando 1 diventa 0)
+	
+	# controllo validità della scelta 
+	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
+	bne  $t0, $zero, choice_err2 # errore se $t0==1
+	li   $t0, 2
+	sle  $t0, $t2, $t0	#$t0=1 se scelta<=2
+	beq  $t0, $zero, choice_err2 # errore se $t0==0
+	
+	#se arrivo qui l'opzione digitata è corretta
+	addi $sp,$sp, -4
+	sw $ra, 0($sp)
+	
+	bne $t2, $zero, L1Sched	#se $t2!=0 allora salto
+	jal bubbleSortByPriority
+	j L2Sched
+	
+	L1Sched:
+	jal bubbleSortByRemainingExecution
+	
+	L2Sched:
+	lw $ra, 0($sp)
+	addi $sp,$sp, 4
+	
+	return6:
 	j loopMainMenu # ritorna alla richiesta di inserimento
 	  	  
 case7: # Termina programma
@@ -112,17 +158,73 @@ case7: # Termina programma
 	jr $ra
 	
 choice_err: 
+	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
 	# stampa la stringa d'errore
 	li $v0, 4  
      	la $a0, strErrore 
       	syscall 						  		  		  	  
       	j choice # ritorna alla richiesta di inserimento
-		
+	
+choice_err2: 
+	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	# stampa la stringa d'errore
+	li $v0, 4  
+     	la $a0, strErrore 
+      	syscall 						  		  		  	  
+      	j loopSchedulingChoice # ritorna alla richiesta di inserimento	
 	
 
 
 
-
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA IS_EMPTY ========================================
+#====================================================================================
+isEmpty:
+	lw $t0, length	#carico dimensione della lista
+	beq $t0, $zero, return0	#se $t0!=0 allora ritorno 1, cioè la lista non è vuota, altrimenti salto e ritorno 0
+	addiu $v0, $v0, 1 
+	j exitIsEmpty
+	
+	return0:
+	# stampa la stringa d'errore
+	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 4  
+     	la $a0, strIsEmpty
+      	syscall 
+	move $v0, $zero
+	
+	exitIsEmpty:
+	jr $ra
+	
+	
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA INSERT TASK =====================================
+#====================================================================================
+insertTask:
+	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 4  
+     	la $a0, strInsPriorita
+      	syscall 
+      	 # l'utente digita un'opzione	  
+        li $v0, 12		# legge carattere digitato
+	syscall
+	move $t2, $v0   	# $t2 = opzione digitata
+	addi $t2, $t2, -48	#decremento di 48 il valore ASCII del carattere digitato
+	
+	# controllo validità della scelta 
+	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
+	bne  $t0, $zero, choice_err # errore se $t0==1
+	li   $t0, 7
+	sle  $t0, $t2, $t0	#$t0=1 se scelta<=7
+	beq  $t0, $zero, choice_err # errore se $t0==0
 
 #====================================================================================
 #++--++--   PROCEDURA DI ORDINAMENTO BUBBLESORT PER PRIOIRTA' =======================
@@ -159,7 +261,7 @@ bubbleSortByPriority:
  			beq $t5, $t6, swapByID  # se le priorità sono uguali allora ordino per ID
  			
  			# i due nodi non sono ordinati
- 			beqz $t4, L1	  # se $t4==0 allora salta per gestire caso particolare
+ 			beqz $t4, L1Prior	  # se $t4==0 allora salta per gestire caso particolare
  			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
  			sw $t3, 6($t8)    # B.next = D (C.next)
  			sw $t8, 6($t9)    # C.next = B
@@ -169,7 +271,7 @@ bubbleSortByPriority:
  			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInterno	#altrimenti esci dal ciclo
  			
- 			L1:
+ 			L1Prior:
  			lw $t3, 6($t9)    # $t3 = C (ovvero B.next)
  			sw $t3, 6($t8)    # A.next = C (ovvero B.next)
  			sw $t8, 6($t9)    # B.next = A
@@ -191,7 +293,7 @@ bubbleSortByPriority:
 			bge $t5, $t6, loopInterno 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente, rieseguo il ciclo
 
 			#i due nodi non sono ordinati
-			beqz $t4, L1	  # se $t4==0 allora salta per gestire caso particolare
+			beqz $t4, L1Prior	  # se $t4==0 allora salta per gestire caso particolare
  			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
  			sw $t3, 6($t8)    # B.next = D (C.next)
  			sw $t8, 6($t9)    # C.next = B
@@ -205,7 +307,8 @@ bubbleSortByPriority:
 		exitLoopInterno:
 		bnez $t1, loopEsterno    # se $t1!=0 allora rieseguo il ciclo interno (loop1)
 	exitLoopEsterno:
-
+	sw $zero, flagScheduling #flagScheduling=0 perchè la politica di scheduling adottata è per priorità 
+	jr $ra
 
 #====================================================================================
 #++--++--   PROCEDURA DI ORDINAMENTO BUBBLESORT PER ESECUZIONI RIMANENTI ===========
@@ -231,7 +334,7 @@ bubbleSortByRemainingExecution:
  			beq $t5, $t6, swapByIDExec  # se le priorità sono uguali allora ordino per ID
  			
  			# i due nodi non sono ordinati
- 			beqz $t4, L1	  # se $t4==0 allora salta per gestire caso particolare
+ 			beqz $t4, L1Exec	  # se $t4==0 allora salta per gestire caso particolare
  			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
  			sw $t3, 6($t8)    # B.next = D (C.next)
  			sw $t8, 6($t9)    # C.next = B
@@ -276,7 +379,9 @@ bubbleSortByRemainingExecution:
 		exitLoopInternoExec:
 		bnez $t1, loopEsternoExec    # se $t1!=0 allora rieseguo il ciclo interno (loop1)
 	exitLoopEsternoExec:
-
+	addi $t0, $zero, 1
+	sw $t0, flagScheduling #flagScheduling=1 perchè la politica di scheduling adottata è per esecuzioni 
+	jr $ra
 
 
 
@@ -284,7 +389,7 @@ bubbleSortByRemainingExecution:
 
 
 #====================================================================================
-#++--++--++--++--++--++--++   PRINT TASK PROCEDURE    ===============================
+#++--++--++--++--++--++--++ PROCEDURA PRINT TASK     ===============================
 #====================================================================================
 
 # PRINTALL
@@ -311,64 +416,74 @@ noop: #aspè, devo rivedere sui pdf delle cose..
 
 
 #====================================================================================
-#++--++--++--++--++--++--++   PRINT MAIN MENU PROCEDURE    ==========================
+#++--++--++--++--++--++--++  PROCEDURA PRINT MAIN MENU     ==========================
 #====================================================================================
 printMainMenu:
 
-  	li $v0, 11	#stampo un ritorno a capo (\n)
+  	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 	
-	la $a0 item1    # Nell'indirizzo a0 ci carico la stringa "Inserisci un nuovo task"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 strLinea    
+  	li $v0,4        
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+  	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	la $a0 item1    
+  	li $v0,4        
+  	syscall 
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 	
-	la $a0 item2    # Nell'indirizzo a0 ci carico la stringa "Eseguire il task in testa alla coda"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 item2    
+  	li $v0,4        
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 
-        la $a0 item3    # Nell'indirizzo a0 ci carico la stringa "Esegui uno specifico task"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+        la $a0 item3   
+  	li $v0,4        
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 
-	la $a0 item4    # Nell'indirizzo a0 ci carico la stringa "Elimina uno specifico task"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 item4  
+  	li $v0,4       
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 	
-	la $a0 item5    # Nell'indirizzo a0 ci carico la stringa "Modifica priorita di uno specifico task"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 item5    
+  	li $v0,4        
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 
-	la $a0 item6    # Nell'indirizzo a0 ci carico la stringa "Cambia politica di scheduling"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 item6    
+  	li $v0,4        
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 
-	la $a0 item7    # Nell'indirizzo a0 ci carico la stringa "Esci dal programma"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 item7   
+  	li $v0,4        
   	syscall 
-        li $v0, 11	#stampo un ritorno a capo (\n)
+        li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
 	
-	la $a0 strInserimento    # Nell'indirizzo a0 ci carico la stringa "Esci dal programma"
-  	li $v0,4        # Caricare in un registro, un valore costante, lo stesso valore che corrisponde ad una funzione che verrà poi eseguita con la chiamata successiva
+	la $a0 strInserimento    
+  	li $v0,4       
   	syscall 
+	
 	jr $ra
