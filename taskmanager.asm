@@ -27,7 +27,7 @@ tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
  
 #-----------------------------------------------
 # STRUTTURA DI UN TASK (in byte)
-# 4 byte = Id
+# 4 byte = ID
 # 4 byte = Priorita
 # 4 byte = Esecuzioni rimanenti
 # 4 byte = Indirizzo memoria del task successivo
@@ -100,15 +100,17 @@ case1: # Inserimento nuovo task
 	
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
-case2: # Esecuzione task in testa alla coda
+case2: # Esecuzione prossimo task (in base alla politica di scheduling adottata, il prossimo task da eseguire è quello puntato da tail)
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
-	
-	
+	lw $a0, tail		# prima carica in $a0 l'indirizzo dell'ultimo nodo	
+	lw $a0, 0($a0)		# dopo carica in $a0 l'ID dell'ultimo nodo (executeTask richiede l'ID del task da eseguire)
+	jal executeTask		#esegue il prossimo task
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, -8
+	
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case3: # Esecuzione specifico task"
@@ -395,6 +397,68 @@ insertTask:
 
 
 
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA EXECUTE TASK =====================================
+#====================================================================================
+executeTask:
+	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato a searchTaskByID
+	sw $ra, 0($sp)
+	jal searchTaskByID	# cerca il task e ritorna in $v0 l'indirizzo del record
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	move $t0, $v0	#$t2 = indirizzo del task da eseguire
+	
+	lw $t1, 8($t0)	# $t1 = esecuzioni rimanenti
+	addi $t1, $t1, -1 	#sottraggo 1 alle esecuzioni
+	beqz $t1, remove	#se $t1==0 devo rimuovere il task
+	sw $t1, 8($t0)	#altrimenti salvo il valore aggiornato
+	j exitExecute
+	
+	remove:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	lw $a0, 0($t0)	# $a0 = ID del task da eliminare
+	jal removeTask	#richiamo la removeTask per eliminare l'ultimo nodo che ha terminato l'esecuzione, riceve come argomento l'ID
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	exitExecute:
+	jr $ra
+	
+	
+	
+	
+	
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA SERACH TASK BY ID================================
+#====================================================================================	
+searchTaskByID:
+	move $t1, $a0	# $t1 = ID da cercare
+	lw $t0, head	# $t0 = indirizzo del primo nodo, sarà usato per scorrere la lista
+	
+	loopSearch:
+	lw $t2, 0($t0)	# $t2 = variabile d'appoggio per l'ID del nodo attuale
+	beq $t2, $t1, exitSearch	#se $t2==$t1 ho trovato il task, esco dal ciclo
+	lw $t0, 12($t0)	#altrimenti procedo al prossimo nodo
+
+
+
+
+
+
+
+
+
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA REMOVE TASK =====================================
+#====================================================================================
+
+
+
+
+
+
+
 
 
 
@@ -423,34 +487,39 @@ bubbleSortByPriority:
 		loopInterno:
 			beqz $t2, exitLoopInterno     # se $t2==0 allora ho esaminato tutti gli elementi, quindi esco dal ciclo
 			addi $t2,$t2,-1   	# decremento contatore $t2 (ciclo interno)
- 			lbu $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record task in cima alla pagina) 
+ 			lw $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record) 
  			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 6($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 6 byte di offset  
- 			lbu $t6, 4($t0)     	# $t6 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset
+			lw $t0, 12($t0)         # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
+ 			lw $t6, 4($t0)     	# $t6 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset
  			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
  		
-			blt $t5, $t6, loopInterno 	# se $t5<$t6 i due nodi sono ordinati in modo crescente, rieseguo il ciclo
+			bgt $t5, $t6, loopInterno 	# se $t5>$t6 i due nodi sono ordinati in modo decrescente, rieseguo il ciclo
  			beq $t5, $t6, swapByID  # se le priorità sono uguali allora ordino per ID
  			
  			# i due nodi non sono ordinati
- 			beqz $t4, L1Prior	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 6($t8)    # B.next = D (C.next)
- 			sw $t8, 6($t9)    # C.next = B
- 			sw $t9, 6($t7)    # A.next = C
- 			lw $t7, 6($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
+ 			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
+ 			bnez $t2, ignoreTailSwap1  # se $t2==0 allora è l'ultima iterazione e sto modificando l'ultimo elemento, devo cambiare puntatore alla coda
+ 			sw $t8, tail
+ 			
+ 			ignoreTailSwap1:
+ 			beqz $t4, headSwap	  # se $t4==0 allora salta per gestire caso particolare
+ 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
+ 			sw $t3, 12($t8)    # B.next = D (C.next)
+ 			sw $t8, 12($t9)    # C.next = B
+ 			sw $t9, 12($t7)    # A.next = C
+ 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
  			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
  			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInterno	#altrimenti esci dal ciclo
  			
- 			L1Prior:
- 			lw $t3, 6($t9)    # $t3 = C (ovvero B.next)
- 			sw $t3, 6($t8)    # A.next = C (ovvero B.next)
- 			sw $t8, 6($t9)    # B.next = A
+ 			headSwap:
+ 			lw $t3, 12($t9)    # $t3 = C (ovvero B.next)
+ 			sw $t3, 12($t8)    # A.next = C (ovvero B.next)
+ 			sw $t8, 12($t9)    # B.next = A
  			sw $t9, head      # head = B , ovvero B diventa la nuova head della lista
 			lw $t7, head	  # aggiorno indirizzo sentinella $t7 al primo nodo della lista
 			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
-			li $t4, 1		  #modifico flag $t4
+			addi $t4, $zero, 1		  #modifico flag $t4
  			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInterno	#altrimenti esci dal ciclo
 
@@ -458,19 +527,19 @@ bubbleSortByPriority:
 			swapByID:	#è necessario accedere ai campi ID dei due nodi e confrontarli tra loro
 			lw $t5, 0($t0)     	# $t5 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset (cfr. schema del record task in cima alla pagina) 
  			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 6($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 6 byte di offset  
- 			lw $t6, 4($t0)     	# $t6 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset
+			lw $t0, 12($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
+ 			lw $t6, 0($t0)     	# $t6 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset
  			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
  			
-			bge $t5, $t6, loopInterno 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente, rieseguo il ciclo
+			bge $t5, $t6, loopInterno 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente per ID, rieseguo il ciclo
 
 			#i due nodi non sono ordinati
-			beqz $t4, L1Prior	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 6($t8)    # B.next = D (C.next)
- 			sw $t8, 6($t9)    # C.next = B
- 			sw $t9, 6($t7)    # A.next = C
- 			lw $t7, 6($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
+			beqz $t4, headSwap	  # se $t4==0 allora salta per gestire caso particolare
+ 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
+ 			sw $t3, 12($t8)    # B.next = D (C.next)
+ 			sw $t8, 12($t9)    # C.next = B
+ 			sw $t9, 12($t7)    # A.next = C
+ 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
  			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
  			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInterno	#altrimenti esci dal ciclo
@@ -496,34 +565,39 @@ bubbleSortByExecutions:
 		loopInternoExec:
 			beqz $t2, exitLoopInternoExec     # se $t2==0 allora ho esaminato tutti gli elementi, quindi esco dal ciclo
 			addi $t2,$t2,-1   	# decremento contatore $t2 (ciclo interno)
- 			lbu $t5, 5($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record task in cima alla pagina) 
+ 			lw $t5, 8($t0)     	# $t5 = esecuzioni del task il cui indirizzo è in $t0, salto 8 byte di offset (cfr. schema del record task in cima alla pagina) 
  			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 6($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 6 byte di offset  
- 			lbu $t6, 5($t0)     	# $t6 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset
+			lw $t0, 12($t0)         # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
+ 			lw $t6, 8($t0)     	# $t6 = esecuzioni del task il cui indirizzo è in $t0, salto 8 byte di offset
  			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
  		
-			bgt $t5, $t6, loopInternoExec 	# se $t5<$t6 i due nodi sono ordinati in modo crescente, rieseguo il ciclo
+			blt $t5, $t6, loopInternoExec 	# se $t5<$t6 i due nodi sono ordinati in modo crescente, rieseguo il ciclo
  			beq $t5, $t6, swapByIDExec  # se le priorità sono uguali allora ordino per ID
  			
  			# i due nodi non sono ordinati
- 			beqz $t4, L1Exec	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 6($t8)    # B.next = D (C.next)
- 			sw $t8, 6($t9)    # C.next = B
- 			sw $t9, 6($t7)    # A.next = C
- 			lw $t7, 6($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
+ 			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
+ 			bnez $t2, ignoreTailSwap2  # se $t2==0 allora è l'ultima iterazione e sto modificando l'ultimo elemento, devo cambiare puntatore alla coda
+ 			sw $t8, tail
+ 			
+ 			ignoreTailSwap2:
+ 			beqz $t4, headSwapExec	  # se $t4==0 allora salta per gestire caso particolare
+ 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
+ 			sw $t3, 12($t8)    # B.next = D (C.next)
+ 			sw $t8, 12($t9)    # C.next = B
+ 			sw $t9, 12($t7)    # A.next = C
+ 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
  			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
  			bnez $t2, loopInternoExec     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInternoExec	#altrimenti esci dal ciclo
  			
- 			L1Exec:
- 			lw $t3, 6($t9)    # $t3 = C (ovvero B.next)
- 			sw $t3, 6($t8)    # A.next = C (ovvero B.next)
- 			sw $t8, 6($t9)    # B.next = A
+ 			headSwapExec:
+ 			lw $t3, 12($t9)    # $t3 = C (ovvero B.next)
+ 			sw $t3, 12($t8)    # A.next = C (ovvero B.next)
+ 			sw $t8, 12($t9)    # B.next = A
  			sw $t9, head      # head = B , ovvero B diventa la nuova head della lista
 			lw $t7, head	  # aggiorno indirizzo sentinella $t7 al primo nodo della lista
 			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
-			li $t4, 1		  #modifico flag $t4
+			addi $t4, $zero, 1		  #modifico flag $t4
  			bnez $t2, loopInternoExec     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInternoExec	#altrimenti esci dal ciclo
 
@@ -531,19 +605,19 @@ bubbleSortByExecutions:
 			swapByIDExec:	#è necessario accedere ai campi ID dei due nodi e confrontarli tra loro
 			lw $t5, 0($t0)     	# $t5 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset (cfr. schema del record task in cima alla pagina) 
  			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 6($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 6 byte di offset  
- 			lw $t6, 5($t0)     	# $t6 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset
+			lw $t0, 12($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
+ 			lw $t6, 0($t0)     	# $t6 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset
  			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
  			
-			bge $t5, $t6, loopInternoExec 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente, rieseguo il ciclo
+			bge $t5, $t6, loopInternoExec 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente per ID, rieseguo il ciclo
 
 			#i due nodi non sono ordinati
-			beqz $t4, L1Exec	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 6($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 6($t8)    # B.next = D (C.next)
- 			sw $t8, 6($t9)    # C.next = B
- 			sw $t9, 6($t7)    # A.next = C
- 			lw $t7, 6($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
+			beqz $t4, headSwapExec	  # se $t4==0 allora salta per gestire caso particolare
+ 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
+ 			sw $t3, 12($t8)    # B.next = D (C.next)
+ 			sw $t8, 12($t9)    # C.next = B
+ 			sw $t9, 12($t7)    # A.next = C
+ 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
  			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
  			bnez $t2, loopInternoExec     # se $t2!=0, rieseguo il ciclo
  			j exitLoopInternoExec	#altrimenti esci dal ciclo
