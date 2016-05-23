@@ -14,7 +14,10 @@ item5: .asciiz "5) Modifica priorita di uno specifico task"
 item6: .asciiz "6) Cambia politica di scheduling"
 item7: .asciiz "7) Esci dal programma"
 strErrore: .asciiz "Opzione errata! "
+strErroreID: .asciiz "Opzione errata! L'ID deve essere maggiore di 0."
+strTaskNotFound: .asciiz "Errore: Task inesistente."
 strInserimento: .asciiz "Inserisci scelta: "
+strInsID: .asciiz "Inserisci ID del task: "
 strLinea: .asciiz "-------------------------------------------------------"
 strInsPolitica: .asciiz "Scegliere politica di scheduling (1->Priorità, 2->Esecuzioni): "
 strInsPriorita: .asciiz "Inserisci Priorità (0->minima, 9->massima): "
@@ -113,18 +116,34 @@ case2: # Esecuzione prossimo task (in base alla politica di scheduling adottata,
 	
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
-case3: # Esecuzione specifico task"
+case3: # Esecuzione specifico task
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
-	
-	
+	jal getID	#richiedo ID all'utente, che sarà salvato in $v0
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, -8 
+
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	move $a0, $v0	# $a0 = ID del task da eseguire (digitato da utente e ritornato con $v0)
+	jal executeTask
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, -8 
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 	
 case4: # Eliminazione specifico task
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	jal getID	#richiedo ID all'utente, che sarà salvato in $v0
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, -8 
+
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
@@ -209,7 +228,8 @@ case7: # Termina programma
 	lw $t1, 0($sp)
 	addi $sp,$sp, -8
 	jr $ra
-	
+#-----------------------------------------------------------------------------
+#etichette per la gestione degli errori di input da parte dell'utente	
 choice_err: 
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10		
@@ -230,7 +250,38 @@ choice_err2:
      	la $a0, strErrore 
       	syscall 						  		  		  	  
       	j loopSchedulingChoice  # ritorna alla richiesta di inserimento	
+
+
+
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA GET_ID ========================================
+#====================================================================================
+getID:
+	loopGetID:
+	#richiesta inserimento ID
+	li $v0, 4
+	la $a0, strInsID
+	syscall
+        li $v0, 5		# legge intero digitato
+	syscall
+	move $t2, $v0   	# $t2 = opzione digitata
 	
+	# controllo validità della scelta (deve essere scelta>0 )
+	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
+	bne  $t0, $zero, choice_err_getID # errore se $t0==1
+
+	#se arrivo qua la scelta è corretta
+	move $v0, $t2
+	jr $ra
+	
+	choice_err_getID: 
+	li $v0, 11		#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 4  		# stampa la stringa d'errore
+     	la $a0, strErroreID
+      	syscall 						  		  		  	  
+      	j loopGetID  # ritorna alla richiesta di inserimento ID
 
 
 
@@ -406,7 +457,11 @@ executeTask:
 	jal searchTaskByID	# cerca il task e ritorna in $v0 l'indirizzo del record
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
-	move $t0, $v0	#$t2 = indirizzo del task da eseguire
+	
+	li $t2, -1	
+	beq $t2, $v0, exitExecute	#se $v0==-1 allora il task non è stato trovato, esco direttamente
+	
+	move $t0, $v0	#$t0 = indirizzo del task da eseguire
 	
 	lw $t1, 8($t0)	# $t1 = esecuzioni rimanenti
 	addi $t1, $t1, -1 	#sottraggo 1 alle esecuzioni
@@ -430,19 +485,35 @@ executeTask:
 	
 	
 #====================================================================================
-#++--++--++--++--++--++-- PROCEDURA SERACH TASK BY ID================================
+#++--++--++--++--++--++-- PROCEDURA SEARCH TASK BY ID ===============================
 #====================================================================================	
+# input: a0-> ID da cercare
+# output: v0-> indirizzo del task se trovato, altrimenti -1
 searchTaskByID:
 	move $t1, $a0	# $t1 = ID da cercare
 	lw $t0, head	# $t0 = indirizzo del primo nodo, sarà usato per scorrere la lista
+	li $v0, -1	# $v0 = inizializzo variabile di ritorno a -1, se il task verrà trovato allora sarà modificato nel corso della ricerca
 	
 	loopSearch:
+	beqz $t0, exitSearch	# se $t0==0 allora il puntatore è nullo, ho raggiunto la fine della lista ed esco 
 	lw $t2, 0($t0)	# $t2 = variabile d'appoggio per l'ID del nodo attuale
-	beq $t2, $t1, exitSearch	#se $t2==$t1 ho trovato il task, esco dal ciclo
-	lw $t0, 12($t0)	#altrimenti procedo al prossimo nodo
-
-
-
+	beq $t2, $t1, returnRst	#se $t2==$t1 ho trovato il task, esco dal ciclo
+	lw $t0, 12($t0)	#altrimenti procedo al prossimo nodo e rieseguo il ciclo
+	j loopSearch
+	
+	returnRst:
+	move $v0, $t0	# $v0 = indirizzo del task trovato (salvato in $t0)
+	jr $ra
+	
+	exitSearch:
+	li $v0, 4
+	la $a0, strTaskNotFound	# stampo messaggio d'errrore
+	syscall
+	li $v0, 11	#ritorno a capo (\n)
+	li $a0, 10		
+	syscall
+	li $v0, -1	# ritorno -1
+	jr $ra
 
 
 
