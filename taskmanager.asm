@@ -708,6 +708,11 @@ removeTask:
 	sw $t4, length
 	
 	exitRemove:
+	lw $t4, length
+	bnez $t4, exitRemove2
+	sw $zero, head
+	sw $zero, tail 
+	exitRemove2:
 	jr $ra
 
 #====================================================================================
@@ -771,22 +776,29 @@ exitChangePriority:
 #====================================================================================
 #++--++--   PROCEDURA DI ORDINAMENTO PER PRIOIRTA' ===================
 #====================================================================================
-#
-#
-#
-#
-#
-#
-#
+# $t0 = scorre la lista
+# $t1 = contatore ciclo esterno
+# $t2 = contatore ciclo interno
+# $t3 = 10 (usato come confronto iniziale per la priorità)
+# $t4 = indirizzo del task con priorità minore ad ogni iterazione (sarà il task che verrà spostato)
+# $t5 = appoggio per priorità nodo da confrontare nel ciclo interno
+# $t6 = appoggio generico
+# $t7 = precedente di $t0 ad ogni iterazione
+# $t8 = precedente di $t4 (necessario per eseguire lo scambio
+# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
+# $s0 = appoggio per ID del nodo da confrontare nel ciclo interno (necessario se le priorità sono uguali)
+# $s1 = ID del task minimo trovato (ovvero $t4), necessario per verificare durante lo swap se stiamo spostando head
+
 sortByPriority:
 	addi $sp, $sp, -8	# in seguito sono usati s0 e s1, li salvo nello stack
 	sw $s0, 0($sp)
 	sw $s1, 4($sp) 
 	move $t9, $zero	# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
 	lw $t1, length      # carico la lunghezza della lista
-	li $t3, 10	# $t3 = registro di appoggio per priorità più grande
-	lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
+	
 	loopSort:
+		li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
 		addi $t1, $t1, -1	#decremento il contatore del ciclo esterno
@@ -808,6 +820,7 @@ sortByPriority:
  			lw $s1, 0($t0)	# salvo in $s1 l'ID del task minimo,
  			move $t4, $t0	# l'indirizzo di tale task
  			move $t8, $t7	# e del suo precedente
+ 			
  			jumpLoopFind1:
  			move $t7, $t0
  			blez $t2, exitLoopFind	#se $t2<=0 allora ho terminato la ricerca e posso uscire
@@ -861,9 +874,9 @@ sortByExec:
 	move $t9, $zero	#$t9=flag per sapere se è il primo scambio (necessario per aggiornare tail)
 	
 	lw $t1, length      # carico la lunghezza della lista
-	li $t3, 10	# $t3 = registro di appoggio per priorità più grande
-	lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
 	loopSortExec:
+		li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
 		addi $t1, $t1, -1	#decremento il contatore del ciclo esterno
