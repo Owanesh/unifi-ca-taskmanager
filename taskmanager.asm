@@ -16,6 +16,7 @@ item7: .asciiz "7) Esci dal programma"
 strErrore: .asciiz "Opzione errata! "
 strErroreID: .asciiz "Opzione errata! L'ID deve essere maggiore di 0."
 strTaskNotFound: .asciiz "Errore: Task inesistente."
+strEmptyList: .asciiz "La lista è vuota."
 strInserimento: .asciiz "Inserisci scelta: "
 strInsID: .asciiz "Inserisci ID del task: "
 strLinea: .asciiz "-------------------------------------------------------"
@@ -99,7 +100,13 @@ case1: # Inserimento nuovo task
 	jal insertTask		#richiama procedura per l'inserimento di un nuovo task
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
+	addi $sp,$sp, 8
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printTasks	#stampo l'elenco dei task all'interno della lista
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
@@ -112,7 +119,13 @@ case2: # Esecuzione prossimo task (in base alla politica di scheduling adottata,
 	jal executeTask		#esegue il prossimo task
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
+	addi $sp,$sp, 8
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printTasks	#stampo l'elenco dei task all'interno della lista
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
@@ -120,10 +133,19 @@ case3: # Esecuzione specifico task
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, 8 
+	beqz $v0, lblExitCase3	# se $v0==0 allora la lista è vuota e termino la procedura
+	
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
 	jal getID	#richiedo ID all'utente, che sarà salvato in $v0
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8 
+	addi $sp,$sp, 8 
 
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
@@ -132,38 +154,88 @@ case3: # Esecuzione specifico task
 	jal executeTask
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8 
+	addi $sp,$sp, 8 
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printTasks	#stampo l'elenco dei task all'interno della lista
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	lblExitCase3:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 	
 case4: # Eliminazione specifico task
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, 8 
+	beqz $v0, lblExitCase4	# se $v0==0 allora la lista è vuota e termino la procedura
+	
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
 	jal getID	#richiedo ID all'utente, che sarà salvato in $v0
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8 
+	addi $sp,$sp, 8 
 
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
-	
-	
+	move $a0, $v0
+	jal removeTask	#rimuovo il task il cui ID è specificato in $a0
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
-	   
+	addi $sp,$sp, 8
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printTasks	#stampo l'elenco dei task all'interno della lista
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	lblExitCase4:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 	
 case5: # Modifica priorità di uno specifico task
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
-	
-	
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
+	addi $sp,$sp, 8 
+	beqz $v0, lblExitCase5	# se $v0==0 allora la lista è vuota e termino la procedura
+	
+	
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	jal getID	#richiedo ID all'utente, che sarà salvato in $v0
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, 8 
+	
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	move $a0, $v0
+	#jal changePriority
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, 8
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printTasks	#stampo l'elenco dei task all'interno della lista
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+
+	lblExitCase5:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 	
 case6: # Cambia politica di scheduling
@@ -175,9 +247,8 @@ case6: # Cambia politica di scheduling
 	jal isEmpty		#richiamo procedura isEmpty per verificare che la lista non sia vuota
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
-	
-	beq $v0, $zero, return6	#se $v0==0 allora la lista è vuota, ritorno al menù principale
+	addi $sp,$sp, 8
+	beqz $v0, lblExitCase6	#se $v0==0 allora la lista è vuota, ritorno al menù principale
 	
 	loopSchedulingChoice:
 	li $v0, 11		#ritorno a capo (\n)
@@ -218,15 +289,21 @@ case6: # Cambia politica di scheduling
 	L2Sched:
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
+	addi $sp,$sp, 8
 	
-	return6:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal printTasks	#stampo l'elenco dei task all'interno della lista
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	lblExitCase6:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 	  	  
 case7: # Termina programma
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
-	addi $sp,$sp, -8
+	addi $sp,$sp, 8
 	jr $ra
 #-----------------------------------------------------------------------------
 #etichette per la gestione degli errori di input da parte dell'utente	
@@ -291,13 +368,13 @@ getID:
 isEmpty:
 	lw $t0, length		#carico dimensione della lista
 	beq $t0, $zero, return0	#se $t0!=0 allora ritorno 1, cioè la lista non è vuota, altrimenti salto e ritorno 0
-	addiu $v0, $v0, 1 
+	li $v0, 1 
 	j exitIsEmpty
 	
 	return0:
 	# stampa la stringa d'errore
 	li $v0, 11	#ritorno a capo (\n)
-	addi $a0, $zero, 10		
+	li $a0, 10		
 	syscall
 	li $v0, 4  
      	la $a0, strIsEmpty
@@ -425,7 +502,8 @@ insertTask:
 	jr $ra
 	
 	
-
+#-----------------------------------------------------------------------------
+#etichette per la gestione degli errori di input da parte dell'utente	
 
 	choice_err_priorita: 	#gestisce errore di inserimento priorità sbagliata
 	li $v0, 11		#ritorno a capo (\n)
@@ -452,7 +530,16 @@ insertTask:
 #++--++--++--++--++--++-- PROCEDURA EXECUTE TASK =====================================
 #====================================================================================
 executeTask:
-	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato a searchTaskByID
+	addi $sp, $sp, -8	
+	sw $ra, 0($sp)
+	sw $a0, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $a0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	beqz $v0, exitExecute	# se $v0==0 allora la lista è vuota e termino la procedura
+	
+	addi $sp, $sp, -4	# $a0 possiede già l'argomento di searchTaskByID, inoltre non mi interessa più preservarne il contenuto
 	sw $ra, 0($sp)
 	jal searchTaskByID	# cerca il task e ritorna in $v0 l'indirizzo del record
 	lw $ra, 0($sp)
@@ -489,20 +576,35 @@ executeTask:
 #====================================================================================	
 # input: a0-> ID da cercare
 # output: v0-> indirizzo del task se trovato, altrimenti -1
+#CASI PARTICOLARI: primo nodo -> v0=head, v1= head
+#		   n° nodo -> v0= n° nodo, v1= (n-1)° nodo
+#		   ultimo nodo -> v0=tail, v1= tail.prev
 searchTaskByID:
+	addi $sp, $sp, -8	
+	sw $ra, 0($sp)
+	sw $a0, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $a0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	beqz $v0, lblExit	# se $v0==0 allora la lista è vuota e termino la procedura
+	
 	move $t1, $a0	# $t1 = ID da cercare
-	lw $t0, head	# $t0 = indirizzo del primo nodo, sarà usato per scorrere la lista
-	li $v0, -1	# $v0 = inizializzo variabile di ritorno a -1, se il task verrà trovato allora sarà modificato nel corso della ricerca
+	lw $t0, head	# $t0 = indirizzo del primo nodo, sarà usato come appoggio per scorrere la lista
+	li $v0, -1	# $v0 = inizializzo variabile di ritorno a -1, se il task verrà individuato allora sarà modificato nel corso della ricerca
+	move $t3, $t0	# $t3 = conterrà l'indirizzo del nodo precedente
 	
 	loopSearch:
 	beqz $t0, exitSearch	# se $t0==0 allora il puntatore è nullo, ho raggiunto la fine della lista ed esco 
 	lw $t2, 0($t0)	# $t2 = variabile d'appoggio per l'ID del nodo attuale
 	beq $t2, $t1, returnRst	#se $t2==$t1 ho trovato il task, esco dal ciclo
+	move $t3, $t0	#$t3 = nodo precedente
 	lw $t0, 12($t0)	#altrimenti procedo al prossimo nodo e rieseguo il ciclo
 	j loopSearch
 	
 	returnRst:
 	move $v0, $t0	# $v0 = indirizzo del task trovato (salvato in $t0)
+	move $v1, $t3	# $v1 = indirizzo del nodo precedente (utile nel caso di remove)
 	jr $ra
 	
 	exitSearch:
@@ -513,6 +615,7 @@ searchTaskByID:
 	li $a0, 10		
 	syscall
 	li $v0, -1	# ritorno -1
+	lblExit:
 	jr $ra
 
 
@@ -523,9 +626,63 @@ searchTaskByID:
 #====================================================================================
 #++--++--++--++--++--++-- PROCEDURA REMOVE TASK =====================================
 #====================================================================================
-
-
-
+#L'eliminazione prevede di modificare il puntatore "prossimo nodo" del task precedente a quello da eliminare
+#
+removeTask:
+	addi $sp, $sp, -8	
+	sw $ra, 0($sp)
+	sw $a0, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $a0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	beqz $v0, exitRemove	# se $v0==0 allora la lista è vuota e termino la procedura
+	
+	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato a searchTaskByID
+	sw $ra, 0($sp)
+	jal searchTaskByID	# cerca il task e ritorna: $v0 -> indirizzo del record, $v1 -> indirizzo del nodo precedente 
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	li $t2, -1	
+	beq $t2, $v0, exitRemove	#se $v0==-1 allora il task non è stato trovato, esco direttamente
+	
+	move $t0, $v0	#$t0 = indirizzo del task da rimuovere
+	move $t1, $v1	#$t1 = indirizzo del task precedente
+	#gestisco i 3 casi possibili: eliminazione head, tail e generico nodo
+	lw $t3, head	#carico indirizzo primo nodo
+	lw $t3, 0($t3)	#carico ID del primo nodo
+	lw $t4, 0($t0)	#carico ID del nodo da rimuovere
+	beq $t4, $t3, removeHead	# se $t4==$t3 allora devo eliminare il primo nodo, salto a removeHead
+	lw $t3, tail	#carico indirizzo ultimo nodo
+	lw $t3, 0($t3)	#carico ID ultimo nodo
+	beq $t4, $t3, removeTail	# altrimenti se $t4==$t3 allora devo eliminare l'ultimo nodo, salto a removeTail
+	
+	# per esclusione devo rimuovere un generico nodo
+	lw $t4, 12($t0)	# $t4 = indirizzo del nodo successivo a quello da eliminare
+	sw $t4, 12($t1) # sovrascrivo il campo "nodo successivo" del precedente, ho così eliminato logicamente il riferimento al nodo da eliminare
+	lw $t4, length
+	addi $t4, $t4, -1	#decremento la lunghezza della lista
+	lw $t4, length
+	j exitRemove
+	
+	removeHead:
+	lw $t4, 12($t0)	# ottengo indirizzo del 2° nodo della lista
+	sw $t4, head	# aggiorno l'indirizzo salvato in head
+	lw $t4, length
+	addi $t4, $t4, -1	#decremento la lunghezza della lista
+	lw $t4, length
+	j exitRemove
+	
+	removeTail:
+	sw $zero, 12($t1)	# aggiorno a NULL (zero) il campo "nodo successivo" del penultimo task
+	sw $t1, tail	# aggiorno l'indirizzo salvato in head
+	lw $t4, length
+	addi $t4, $t4, -1	#decremento la lunghezza della lista
+	lw $t4, length
+	
+	exitRemove:
+	jr $ra
 
 
 
@@ -551,6 +708,7 @@ searchTaskByID:
 bubbleSortByPriority:
 	lw $t1, length      # carico la lunghezza della lista
  	loopEsterno:
+ 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
  		addi $t1, $t1, -1   # inizializzo contatore $t1 (ciclo esterno) a length-1
  		beqz $t1, exitLoopEsterno  #se $t1==0 allora esco dal ciclo esterno, ho terminato bubbleSort
  		move $t2,$t1	    # inizializzo contatore $t2 (ciclo interno) al valore di $t1
@@ -565,14 +723,15 @@ bubbleSortByPriority:
  			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
  		
 			bgt $t5, $t6, loopInterno 	# se $t5>$t6 i due nodi sono ordinati in modo decrescente, rieseguo il ciclo
- 			beq $t5, $t6, swapByID  # se le priorità sono uguali allora ordino per ID
- 			
- 			# i due nodi non sono ordinati
- 			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
+
+			# i due nodi non sono ordinati
+			
+			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
  			bnez $t2, ignoreTailSwap1  # se $t2==0 allora è l'ultima iterazione e sto modificando l'ultimo elemento, devo cambiare puntatore alla coda
  			sw $t8, tail
  			
  			ignoreTailSwap1:
+ 			beq $t5, $t6, swapByID  # se le priorità sono uguali allora ordino per ID
  			beqz $t4, headSwap	  # se $t4==0 allora salta per gestire caso particolare
  			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
  			sw $t3, 12($t8)    # B.next = D (C.next)
@@ -628,7 +787,8 @@ bubbleSortByPriority:
 
 bubbleSortByExecutions:
 	lw $t1, length      # carico la lunghezza della lista
- 	loopEsternoExec:
+ 	loopEsternoExec: 	 		
+ 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
  		addi $t1, $t1, -1   # inizializzo contatore $t1 (ciclo esterno) a length-1
  		beqz $t1, exitLoopEsternoExec  #se $t1==0 allora esco dal ciclo esterno, ho terminato bubbleSort
  		move $t2,$t1	    # inizializzo contatore $t2 (ciclo interno) al valore di $t1
@@ -643,14 +803,14 @@ bubbleSortByExecutions:
  			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
  		
 			blt $t5, $t6, loopInternoExec 	# se $t5<$t6 i due nodi sono ordinati in modo crescente, rieseguo il ciclo
- 			beq $t5, $t6, swapByIDExec  # se le priorità sono uguali allora ordino per ID
- 			
- 			# i due nodi non sono ordinati
+
+  			# i due nodi non sono ordinati
  			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
  			bnez $t2, ignoreTailSwap2  # se $t2==0 allora è l'ultima iterazione e sto modificando l'ultimo elemento, devo cambiare puntatore alla coda
  			sw $t8, tail
  			
  			ignoreTailSwap2:
+ 			beq $t5, $t6, swapByIDExec  # se le priorità sono uguali allora ordino per ID
  			beqz $t4, headSwapExec	  # se $t4==0 allora salta per gestire caso particolare
  			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
  			sw $t3, 12($t8)    # B.next = D (C.next)
@@ -706,28 +866,71 @@ bubbleSortByExecutions:
 
 
 #====================================================================================
-#++--++--++--++--++--++--++ PROCEDURA PRINT TASK     ===============================
+#++--++--++--++--++--++--++ PROCEDURA PRINT TASKS     ===============================
 #====================================================================================
 
-# PRINTALL
-#  \_stampo la tablehead
-#   \__ faccio un for da length a 0
-#     \__ stampo i 20byte
-
- 
- 
-
-
-printSingleTask: 
+printTasks: 
 	la $a0, tableHead   # stampo la tablehead
 	li $v0,4
 	syscall 
+	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	
+	lw $t0, head	# $t0 = indirizzo del primo nodo della lista
 	lw $t1, length      # carico la lunghezza della lista
-	loopScorriLista:
+	bnez $t1, loopPrint
+	la $a0, strEmptyList   # stampo messaggio "la lista è vuota"
+	li $v0,4
+	syscall 
+	
+	loopPrint:
+		beqz $t1, exitPrint	# se $t1==0 allora esco dal ciclo
  		addi $t1, $t1, -1   # inizializzo contatore $t1  a length-1
- 		beqz $t1, noop  #se $t1==0 allora esco dal ciclo esterno, ho terminato la stampa
-
-noop: #aspè, devo rivedere sui pdf delle cose..
+ 		
+		li $v0, 11	#stampo '|'
+		li $a0, 124		
+		syscall
+		
+		lw $t2, 0($t0)	# carico l'ID (offset 0)
+		li $v0, 1	# e stampo il valore
+		move $a0, $t2		
+		syscall
+		li $v0, 11	#stampo '|'
+		li $a0, 124		
+		syscall
+		
+		lw $t2, 4($t0)	# carico la priorità (offset 4)
+		li $v0, 1	# e stampo il valore
+		move $a0, $t2		
+		syscall
+		li $v0, 11	#stampo '|'
+		li $a0, 124		
+		syscall
+		
+		la $a0, 16($t0)   #passo l'indirizzo base ($t0) a cui somma offset 16 per arrivare al campo "nome"
+  		li $v0,4        
+  		syscall 
+		li $v0, 11	#stampo '|'
+		li $a0, 124		
+		syscall
+		
+		lw $t2, 8($t0)	# carico le esecuzoni rimanenti (offset 8)
+		li $v0, 1	# e stampo il valore
+		move $a0, $t2		
+		syscall
+		li $v0, 11	#stampo '|'
+		li $a0, 124		
+		syscall
+		li $v0, 11	#ritorno a capo (\n)
+		addi $a0, $zero, 10		
+		syscall
+		
+		lw $t0, 12($t0)	# procedo al prossimo nodo
+		j loopPrint	#rieseguo il ciclo
+	
+	exitPrint:
+	jr $ra
 
 	
 
@@ -736,7 +939,6 @@ noop: #aspè, devo rivedere sui pdf delle cose..
 #++--++--++--++--++--++--++  PROCEDURA PRINT MAIN MENU     ==========================
 #====================================================================================
 printMainMenu:
-
   	li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10		
 	syscall
