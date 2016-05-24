@@ -114,6 +114,15 @@ case2: # Esecuzione prossimo task (in base alla politica di scheduling adottata,
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, 8 
+	beqz $v0, lblExitCase2	# se $v0==0 allora la lista è vuota e termino la procedura
+	
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
 	lw $a0, tail		# prima carica in $a0 l'indirizzo dell'ultimo nodo	
 	lw $a0, 0($a0)		# dopo carica in $a0 l'ID dell'ultimo nodo (executeTask richiede l'ID del task da eseguire)
 	jal executeTask		#esegue il prossimo task
@@ -126,7 +135,7 @@ case2: # Esecuzione prossimo task (in base alla politica di scheduling adottata,
 	jal printTasks	#stampo l'elenco dei task all'interno della lista
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
-	
+	lblExitCase2:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case3: # Esecuzione specifico task
@@ -223,8 +232,25 @@ case5: # Modifica priorità di uno specifico task
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
-	move $a0, $v0
-	#jal changePriority
+	move $a0, $v0	# $a0 = ID digitato dall'utente
+	jal changePriority
+	lw $ra, 4($sp)
+	lw $t1, 0($sp)
+	addi $sp,$sp, 8
+	
+	#richiamo politica di scheduling attuale
+	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
+	sw $t1, 0($sp)
+	sw $ra, 4($sp)
+	lw $t2, flagScheduling
+	bne $t2, $zero, lbl8	#se $t2!=0 allora salto ed eseguo sort per esecuzioni
+	jal sortByPriority #altrimenti eseguo sort per priorità
+	j lbl9
+	
+	lbl8:
+	jal sortByExec
+	
+	lbl9:
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, 8
@@ -275,14 +301,14 @@ case6: # Cambia politica di scheduling
 	sw $ra, 4($sp)
 	
 	bne $t2, $zero, L1Sched	 #se $t2!=0 allora salto
-	jal bubbleSortByPriority #eseguo un'ordinamento per priorità
+	jal sortByPriority #eseguo un'ordinamento per priorità
 	
 	move $t2,$zero		
 	sw $t2, flagScheduling	# variabile flag di scheduling = 0
 	j L2Sched
 	
 	L1Sched:
-	jal bubbleSortByExecutions #eseguo un'ordinamento per esecuzioni rimanenti
+	jal sortByExec #eseguo un'ordinamento per esecuzioni rimanenti
 	addi $t2, $zero, 1	
 	sw $t2, flagScheduling	# variabile flag di scheduling = 1
 	
@@ -475,7 +501,7 @@ insertTask:
       	syscall 
       	# l'utente digita una stringa
       	move $a0, $t1	#scrivo direttamente nel campo "nome" del record
-      	li $a1, 8	#MAX 8 caratteri 
+      	li $a1, 9	#MAX 8 caratteri 
         li $v0, 8	# legge stringa digitata
 	syscall
 	#------------------------------------------------------------------
@@ -490,11 +516,11 @@ insertTask:
 	sw $ra, 0($sp)
 	lw $t2, flagScheduling
 	bne $t2, $zero, lbl1	#se $t2!=0 allora salto ed eseguo sort per esecuzioni
-	jal bubbleSortByPriority #altrimenti eseguo sort per priorità
+	jal sortByPriority #altrimenti eseguo sort per priorità
 	j lbl2
 	
 	lbl1:
-	jal bubbleSortByExecutions
+	jal sortByExec
 	
 	lbl2:
 	lw $ra, 0($sp)
@@ -627,7 +653,7 @@ searchTaskByID:
 #++--++--++--++--++--++-- PROCEDURA REMOVE TASK =====================================
 #====================================================================================
 #L'eliminazione prevede di modificare il puntatore "prossimo nodo" del task precedente a quello da eliminare
-#
+
 removeTask:
 	addi $sp, $sp, -8	
 	sw $ra, 0($sp)
@@ -663,7 +689,7 @@ removeTask:
 	sw $t4, 12($t1) # sovrascrivo il campo "nodo successivo" del precedente, ho così eliminato logicamente il riferimento al nodo da eliminare
 	lw $t4, length
 	addi $t4, $t4, -1	#decremento la lunghezza della lista
-	lw $t4, length
+	sw $t4, length
 	j exitRemove
 	
 	removeHead:
@@ -671,197 +697,237 @@ removeTask:
 	sw $t4, head	# aggiorno l'indirizzo salvato in head
 	lw $t4, length
 	addi $t4, $t4, -1	#decremento la lunghezza della lista
-	lw $t4, length
+	sw $t4, length
 	j exitRemove
 	
 	removeTail:
 	sw $zero, 12($t1)	# aggiorno a NULL (zero) il campo "nodo successivo" del penultimo task
-	sw $t1, tail	# aggiorno l'indirizzo salvato in head
+	sw $t1, tail	# aggiorno l'indirizzo salvato in tail
 	lw $t4, length
 	addi $t4, $t4, -1	#decremento la lunghezza della lista
-	lw $t4, length
+	sw $t4, length
 	
 	exitRemove:
 	jr $ra
 
-
-
-
-
-
-
 #====================================================================================
-#++--++--   PROCEDURA DI ORDINAMENTO BUBBLESORT PER PRIOIRTA' =======================
+#++--++--++--++--++--++-- PROCEDURA CHANGE PRIORITY =================================
 #====================================================================================
+# riceve in $a0 l'ID inserito dall'utente
+changePriority:
+	addi $sp, $sp, -8	
+	sw $ra, 0($sp)
+	sw $a0, 4($sp)
+	jal isEmpty	# se la lista è vuota posso direttamente uscire
+	lw $a0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	beqz $v0, exitChangePriority	# se $v0==0 allora la lista è vuota e termino la procedura
 
-# $t0 = puntatore di appoggio per scorrere la lista
-# $t1 = contatore ciclo esterno (loop2)
-# $t2 = contatore ciclo interno (loop1)
-# $t3 = puntatore del precedente
-# $t4 = flag per gestire il caso in cui i primi due elementi della lista sono fuori posto
-# $t5 = priorità del primo nodo incontrato durante una singola iterazione
-# $t6 = priorità del secondo nodo incontrato durante una singola iterazione
-# $t7 = indirzzo del secondo nodo della precedente iterazione
-# $t8 = registro di appoggio per salvare l'indirizzo del primo nodo incontrato durante una singola iterazione
-# $t9 = registro di appoggio per salvare l'indirizzo del secondo nodo incontrato durante una singola iterazione
+	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato a searchTaskByID
+	sw $ra, 0($sp)
+	jal searchTaskByID	# cerca il task e ritorna: $v0 -> indirizzo del record
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	li $t2, -1	
+	beq $t2, $v0, exitChangePriority	#se $v0==-1 allora il task non è stato trovato, esco direttamente
+	
+	loopInsPriorita:
+	li $v0, 11		#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 4  
+     	la $a0, strInsPriorita
+      	syscall 
+      	 # l'utente digita un'opzione	  
+        li $v0, 5		# legge intero digitato
+	syscall
+	move $t2, $v0   	# $t2 = opzione digitata
+	
+	# controllo validità della scelta 
+	slt  $t0, $t2, $zero	# $t0=1 se scelta < 0
+	bne  $t0, $zero, choice_change_priorita # errore se $t0==1
+	li   $t0, 9
+	sle  $t0, $t2, $t0	#$t0=1 se scelta<=9
+	beq  $t0, $zero, choice_change_priorita # errore se $t0==0
 
-bubbleSortByPriority:
-	lw $t1, length      # carico la lunghezza della lista
- 	loopEsterno:
- 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
- 		addi $t1, $t1, -1   # inizializzo contatore $t1 (ciclo esterno) a length-1
- 		beqz $t1, exitLoopEsterno  #se $t1==0 allora esco dal ciclo esterno, ho terminato bubbleSort
- 		move $t2,$t1	    # inizializzo contatore $t2 (ciclo interno) al valore di $t1
- 		move $t4, $zero	    # $t4 = flag per primo caso 
-		loopInterno:
-			beqz $t2, exitLoopInterno     # se $t2==0 allora ho esaminato tutti gli elementi, quindi esco dal ciclo
-			addi $t2,$t2,-1   	# decremento contatore $t2 (ciclo interno)
- 			lw $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record) 
- 			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 12($t0)         # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
- 			lw $t6, 4($t0)     	# $t6 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset
- 			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
- 		
-			bgt $t5, $t6, loopInterno 	# se $t5>$t6 i due nodi sono ordinati in modo decrescente, rieseguo il ciclo
-
-			# i due nodi non sono ordinati
-			
-			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
- 			bnez $t2, ignoreTailSwap1  # se $t2==0 allora è l'ultima iterazione e sto modificando l'ultimo elemento, devo cambiare puntatore alla coda
- 			sw $t8, tail
- 			
- 			ignoreTailSwap1:
- 			beq $t5, $t6, swapByID  # se le priorità sono uguali allora ordino per ID
- 			beqz $t4, headSwap	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 12($t8)    # B.next = D (C.next)
- 			sw $t8, 12($t9)    # C.next = B
- 			sw $t9, 12($t7)    # A.next = C
- 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
- 			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
- 			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
- 			j exitLoopInterno	#altrimenti esci dal ciclo
- 			
- 			headSwap:
- 			lw $t3, 12($t9)    # $t3 = C (ovvero B.next)
- 			sw $t3, 12($t8)    # A.next = C (ovvero B.next)
- 			sw $t8, 12($t9)    # B.next = A
- 			sw $t9, head      # head = B , ovvero B diventa la nuova head della lista
-			lw $t7, head	  # aggiorno indirizzo sentinella $t7 al primo nodo della lista
-			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
-			addi $t4, $zero, 1		  #modifico flag $t4
- 			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
- 			j exitLoopInterno	#altrimenti esci dal ciclo
-
-			
-			swapByID:	#è necessario accedere ai campi ID dei due nodi e confrontarli tra loro
-			lw $t5, 0($t0)     	# $t5 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset (cfr. schema del record task in cima alla pagina) 
- 			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 12($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
- 			lw $t6, 0($t0)     	# $t6 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset
- 			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
- 			
-			bge $t5, $t6, loopInterno 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente per ID, rieseguo il ciclo
-
-			#i due nodi non sono ordinati
-			beqz $t4, headSwap	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 12($t8)    # B.next = D (C.next)
- 			sw $t8, 12($t9)    # C.next = B
- 			sw $t9, 12($t7)    # A.next = C
- 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
- 			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
- 			bnez $t2, loopInterno     # se $t2!=0, rieseguo il ciclo
- 			j exitLoopInterno	#altrimenti esci dal ciclo
- 			
-
-		exitLoopInterno:
-		bnez $t1, loopEsterno    # se $t1!=0 allora rieseguo il ciclo interno (loop1)
-	exitLoopEsterno:
-	sw $zero, flagScheduling #flagScheduling=0 perchè la politica di scheduling adottata è per priorità 
+	#se arrivo qui il numero digitato è corretto
+	sw $t2, 0($t1)	#salvo nel record il valore inserito
+	
+		
+exitChangePriority:
 	jr $ra
+	
+	choice_change_priorita: 	#gestisce errore di inserimento priorità sbagliata
+	li $v0, 11		#ritorno a capo (\n)
+	addi $a0, $zero, 10		
+	syscall
+	li $v0, 4  		# stampa la stringa d'errore
+     	la $a0, strErrore 
+      	syscall 						  		  		  	  
+      	j loopInsPriorita  	# ritorna alla richiesta di inserimento priorità
 
 #====================================================================================
-#++--++--   PROCEDURA DI ORDINAMENTO BUBBLESORT PER ESECUZIONI RIMANENTI ===========
+#++--++--   PROCEDURA DI ORDINAMENTO PER PRIOIRTA' ===================
 #====================================================================================
-
-bubbleSortByExecutions:
+#
+#
+#
+#
+#
+#
+#
+sortByPriority:
+	addi $sp, $sp, -8	# in seguito sono usati s0 e s1, li salvo nello stack
+	sw $s0, 0($sp)
+	sw $s1, 4($sp) 
+	move $t9, $zero	# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
 	lw $t1, length      # carico la lunghezza della lista
- 	loopEsternoExec: 	 		
- 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
- 		addi $t1, $t1, -1   # inizializzo contatore $t1 (ciclo esterno) a length-1
- 		beqz $t1, exitLoopEsternoExec  #se $t1==0 allora esco dal ciclo esterno, ho terminato bubbleSort
- 		move $t2,$t1	    # inizializzo contatore $t2 (ciclo interno) al valore di $t1
- 		move $t4, $zero	    # $t4 = flag per primo caso 
-		loopInternoExec:
-			beqz $t2, exitLoopInternoExec     # se $t2==0 allora ho esaminato tutti gli elementi, quindi esco dal ciclo
-			addi $t2,$t2,-1   	# decremento contatore $t2 (ciclo interno)
- 			lw $t5, 8($t0)     	# $t5 = esecuzioni del task il cui indirizzo è in $t0, salto 8 byte di offset (cfr. schema del record task in cima alla pagina) 
- 			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 12($t0)         # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
- 			lw $t6, 8($t0)     	# $t6 = esecuzioni del task il cui indirizzo è in $t0, salto 8 byte di offset
- 			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
- 		
-			blt $t5, $t6, loopInternoExec 	# se $t5<$t6 i due nodi sono ordinati in modo crescente, rieseguo il ciclo
-
-  			# i due nodi non sono ordinati
- 			#gestisco caso tailSwap (ovvero modifico puntatore alla coda)
- 			bnez $t2, ignoreTailSwap2  # se $t2==0 allora è l'ultima iterazione e sto modificando l'ultimo elemento, devo cambiare puntatore alla coda
- 			sw $t8, tail
+	li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+	lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
+	loopSort:
+		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
+		lw $t7, head
+		addi $t1, $t1, -1	#decremento il contatore del ciclo esterno
+		blez $t1, exitSortByPriority	#se $t1<=0 allora ho terminato il sort
+		move $t2, $t1	#$t2 = contatore ciclo find
+		#prima trovo il minimo
+		loopFind:
+			lw $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record) 
+ 			bgt $t5, $t3, jumpLoopFind1  #se $t5>$t3 allora proseguo al prossimo nodo (mantengo il task con la priorità minima per metterlo in fondo)
+ 			bne $t5, $t3, set
  			
- 			ignoreTailSwap2:
- 			beq $t5, $t6, swapByIDExec  # se le priorità sono uguali allora ordino per ID
- 			beqz $t4, headSwapExec	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 12($t8)    # B.next = D (C.next)
- 			sw $t8, 12($t9)    # C.next = B
- 			sw $t9, 12($t7)    # A.next = C
- 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
- 			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
- 			bnez $t2, loopInternoExec     # se $t2!=0, rieseguo il ciclo
- 			j exitLoopInternoExec	#altrimenti esci dal ciclo
+ 			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
+ 			lw $s0, 0($t0)	# $s0=ID task appena letto
+ 			lw $t6, 0($t4)	# $t6 = ID task minimo
+ 			bge $s0, $t6, jumpLoopFind1	#se il nuovo task ha un ID maggiore o uguale del task in $t4 allora non cambio niente
  			
- 			headSwapExec:
- 			lw $t3, 12($t9)    # $t3 = C (ovvero B.next)
- 			sw $t3, 12($t8)    # A.next = C (ovvero B.next)
- 			sw $t8, 12($t9)    # B.next = A
- 			sw $t9, head      # head = B , ovvero B diventa la nuova head della lista
-			lw $t7, head	  # aggiorno indirizzo sentinella $t7 al primo nodo della lista
-			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
-			addi $t4, $zero, 1		  #modifico flag $t4
- 			bnez $t2, loopInternoExec     # se $t2!=0, rieseguo il ciclo
- 			j exitLoopInternoExec	#altrimenti esci dal ciclo
-
-			
-			swapByIDExec:	#è necessario accedere ai campi ID dei due nodi e confrontarli tra loro
-			lw $t5, 0($t0)     	# $t5 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset (cfr. schema del record task in cima alla pagina) 
- 			move $t8, $t0		# $t8 = indirizzo del primo nodo (relativo a questa iterazione)
-			lw $t0, 12($t0)          # $t0 = indirizzo del nodo successivo della lista, salto 12 byte di offset  
- 			lw $t6, 0($t0)     	# $t6 = ID del task il cui indirizzo è in $t0, salto 0 byte di offset
- 			move $t9, $t0		# $t9 = indirizzo del secondo nodo (relativo a questa iterazione)
+ 			set:
+ 			move $t3, $t5	# altrimenti ho trovato un nuovo minimo, salvo il valore della priorità
+ 			lw $s1, 0($t0)	# salvo in $s1 l'ID del task minimo,
+ 			move $t4, $t0	# l'indirizzo di tale task
+ 			move $t8, $t7	# e del suo precedente
+ 			jumpLoopFind1:
+ 			move $t7, $t0
+ 			blez $t2, exitLoopFind	#se $t2<=0 allora ho terminato la ricerca e posso uscire
+ 			lw $t0, 12($t0)	# procedo al prossimo nodo
+ 			addi $t2, $t2, -1	#decremento il contatore del ciclo interno di ricerca
+ 			j loopFind
  			
-			bge $t5, $t6, loopInternoExec 	# se $t5>=$t6 i due nodi sono ordinati in modo decrescente per ID, rieseguo il ciclo
-
-			#i due nodi non sono ordinati
-			beqz $t4, headSwapExec	  # se $t4==0 allora salta per gestire caso particolare
- 			lw $t3, 12($t9)    # $t3 = D (ovvero C.next)
- 			sw $t3, 12($t8)    # B.next = D (C.next)
- 			sw $t8, 12($t9)    # C.next = B
- 			sw $t9, 12($t7)    # A.next = C
- 			lw $t7, 12($t7)  # aggiorno indirizzo sentinella $t7 al nodo successivo
- 			move $t0, $t8	  # aggiorno indirizzo di $t0 dato che ho effettuato uno scambio
- 			bnez $t2, loopInternoExec     # se $t2!=0, rieseguo il ciclo
- 			j exitLoopInternoExec	#altrimenti esci dal ciclo
- 
-		exitLoopInternoExec:
-		bnez $t1, loopEsternoExec    # se $t1!=0 allora rieseguo il ciclo interno (loop1)
-	exitLoopEsternoExec:
-	addi $t0, $zero, 1
-	sw $t0, flagScheduling #flagScheduling=1 perchè la politica di scheduling adottata è per esecuzioni 
+		exitLoopFind:
+		
+	# arrivato qui ho in $t4 il task da posizionare in fondo
+	# ma devo capire se sto cambiando di posto a head o tail
+	bne $zero, $t9, jumpSwapHead	# $t9 (flag) != 0 posso saltare
+	# altrimento sto inserendo il task in fondo quindi devo modificare il puntatore di tail
+	sw $t4, tail
+	li $t9, 1	#modifico valore di flag a 1, così non torna più qui
+	
+	jumpSwapHead:
+	lw $t6, head
+	lw $t6, 0($t6)	# ho caricato in $t6 l'ID del primo task
+	bne $s1, $t6, jumpSwap	# se l'ID del task minimo e l'ID di head sono diversi allora salto
+	# altrimento sto scambiando proprio head quindi devo modificare il puntatore di head
+	lw $t6, head
+	lw $t6, 12($t6)	# ho caricato in $t6 l'indirizzo del 2° nodo della lista
+	sw $t6, head	# head diventa il 2° nodo della lista
+	lw $t6, 12($t0)
+	sw $t6, 12($t4)
+	sw $t4, 12($t0)
+	j loopSort
+	
+	jumpSwap:
+	lw $t6, 12($t4)
+	sw $t6, 12($t8)
+	lw $t6, 12($t0)
+	sw $t6, 12($t4)
+	sw $t4, 12($t0)
+	j loopSort
+exitSortByPriority:
+	sw $zero, flagScheduling	#aggiorno flagScheduling con politica attuale
+	lw $s1, 4($sp) 
+	lw $s0, 0($sp)
+	addi $sp, $sp, 8
+		
 	jr $ra
-
-
-
+#====================================================================================
+#++--++--   PROCEDURA DI ORDINAMENTO PER ESECUZIONI ===================
+#====================================================================================
+sortByExec:
+	addi $sp, $sp, -8	# in seguito sono usati s0 e s1, li salvo nello stack
+	sw $s0, 0($sp)
+	sw $s1, 4($sp) 
+	move $t9, $zero	#$t9=flag per sapere se è il primo scambio (necessario per aggiornare tail)
+	
+	lw $t1, length      # carico la lunghezza della lista
+	li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+	lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
+	loopSortExec:
+		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
+		lw $t7, head
+		addi $t1, $t1, -1	#decremento il contatore del ciclo esterno
+		blez $t1, exitSortByExec	#se $t1<=0 allora ho terminato il sort
+		move $t2, $t1	#$t2 = contatore ciclo find
+		#prima trovo il minimo
+		loopFindExec:
+			lw $t5, 8($t0)     	# $t5 = esecuzioni del task il cui indirizzo è in $t0, salto 8 byte di offset (cfr. schema del record) 
+ 			blt $t5, $t3, jumpLoopFind2  #se $t5<$t3 allora proseguo al prossimo nodo (mantengo il task con esecuzioni minime per metterlo in fondo)
+ 			bne $t5, $t3, set2
+ 			
+ 			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
+ 			lw $s0, 0($t0)	# $s0=ID task appena letto
+ 			lw $t6, 0($t4)	# $t6 = ID task minimo
+ 			bge $s0, $t6, jumpLoopFind2	#se il nuovo task ha un ID maggiore o uguale del task in $t4 allora non cambio niente
+ 			
+ 			set2:
+ 			move $t3, $t5	# altrimenti ho trovato un nuovo minimo, salvo il valore della priorità
+ 			lw $s1, 0($t0)	# salvo in $s1 l'ID del task minimo,
+ 			move $t4, $t0	# l'indirizzo di tale task
+ 			move $t8, $t7	# e del suo precedente
+ 			jumpLoopFind2:
+ 			move $t7, $t0
+ 			blez $t2, exitLoopFindExec	#se $t2<=0 allora ho terminato la ricerca e posso uscire
+ 			lw $t0, 12($t0)	# procedo al prossimo nodo
+ 			addi $t2, $t2, -1	#decremento il contatore del ciclo interno di ricerca
+ 			j loopFindExec
+ 			
+		exitLoopFindExec:
+	# arrivato qui ho in $t4 il task da posizionare in fondo
+	# ma devo capire se sto cambiando di posto a head o tail
+	bne $zero, $t9, jumpSwapHeadExec	# $t9 (flag) != 0 posso saltare
+	# altrimento sto inserendo il task in fondo quindi devo modificare il puntatore di tail
+	sw $t4, tail
+	li $t9, 1	#modifico valore di flag a 1, così non torna più qui
+	
+	jumpSwapHeadExec:
+	lw $t6, head
+	lw $t6, 0($t6)	# ho caricato in $t6 l'ID del primo task
+	bne $s1, $t6, jumpSwapExec	# se l'ID del task minimo e l'ID di head sono diversi allora salto
+	# altrimento sto scambiando proprio head quindi devo modificare il puntatore di head
+	lw $t6, head
+	lw $t6, 12($t6)	# ho caricato in $t6 l'indirizzo del 2° nodo della lista
+	sw $t6, head	# head diventa il 2° nodo della lista
+	lw $t6, 12($t0)
+	sw $t6, 12($t4)
+	sw $t4, 12($t0)
+	j loopSortExec
+	
+	jumpSwapExec:
+	lw $t6, 12($t4)
+	sw $t6, 12($t8)
+	lw $t6, 12($t0)
+	sw $t6, 12($t4)
+	sw $t4, 12($t0)
+	j loopSortExec
+	
+exitSortByExec:
+	li $s1, 1
+	sw $s1, flagScheduling	#aggiorno flagScheduling con politica attuale
+	lw $s1, 4($sp) 
+	lw $s0, 0($sp)
+	addi $sp, $sp, 8	
+	jr $ra
 
 
 
@@ -908,9 +974,20 @@ printTasks:
 		li $a0, 124		
 		syscall
 		
-		la $a0, 16($t0)   #passo l'indirizzo base ($t0) a cui somma offset 16 per arrivare al campo "nome"
-  		li $v0,4        
-  		syscall 
+		
+		la $t9, 16($t0)	#uso un registro di appoggio per scorrere byte per byte il nome da stampare
+		li $t5, 10	#carattere '\n' (a capo)
+		loopPrintNome:
+		lb $t4, 0($t9)	# $t4 = carattere letto
+		addi $t9, $t9, 1	# procedo al prossimo carattere
+		beq $t4, $t5, exitLoopPrintNome # se $t4=='\n' allora esco
+		beqz $t4, exitLoopPrintNome # se $t4==0 (fine stringa) allora esco
+		li $v0, 11	#stampo il carattere
+		move $a0, $t4		
+		syscall
+		j loopPrintNome
+		
+		exitLoopPrintNome:
 		li $v0, 11	#stampo '|'
 		li $a0, 124		
 		syscall
