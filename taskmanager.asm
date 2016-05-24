@@ -875,7 +875,7 @@ sortByExec:
 	
 	lw $t1, length      # carico la lunghezza della lista
 	loopSortExec:
-		li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+		li $t3, 0	# $t3 = registro di appoggio per priorità più grande
 		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
