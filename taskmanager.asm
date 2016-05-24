@@ -737,6 +737,7 @@ changePriority:
 	
 	li $t2, -1	
 	beq $t2, $v0, exitChangePriority	#se $v0==-1 allora il task non è stato trovato, esco direttamente
+	move $t1, $v0	# $t1 = indirizzo del task
 	
 	loopInsPriorita:
 	li $v0, 11		#ritorno a capo (\n)
@@ -758,7 +759,7 @@ changePriority:
 	beq  $t0, $zero, choice_change_priorita # errore se $t0==0
 
 	#se arrivo qui il numero digitato è corretto
-	sw $t2, 0($t1)	#salvo nel record il valore inserito
+	sw $t2, 4($t1)	#salvo nel record il valore inserito
 	
 		
 exitChangePriority:
