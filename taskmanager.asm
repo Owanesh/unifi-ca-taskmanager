@@ -762,9 +762,8 @@ changePriority:
 
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 4($t1)	#salvo nel record il valore inserito
-
-
-exitChangePriority:
+	
+	exitChangePriority:
 	jr $ra
 
 	choice_change_priorita: 	#gestisce errore di inserimento priorità sbagliata
