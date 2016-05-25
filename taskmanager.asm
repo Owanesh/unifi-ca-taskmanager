@@ -648,16 +648,30 @@ bubbleSortByExecutions:
 
 
 printSingleTask: 
+	#REGISTRI USATI
+	# $t2 : indica il numero di elementi rimanenti
+	# $t3 : indica il numero di byte da leggere per ogni task
+	# $t1 : indica il task corrente
+	
 	la $a0, tableHead   # stampo la tablehead
 	li $v0,4
 	syscall 
-	lw $t1, length      # carico la lunghezza della lista
+	lw $t2, length      # carico la lunghezza della lista
+	lw $t1,head         # metto in t1 la testa della coda
+	lw $t3,24
 	loopScorriLista:
- 		addi $t1, $t1, -1   # inizializzo contatore $t1  a length-1
- 		beqz $t1, noop  #se $t1==0 allora esco dal ciclo esterno, ho terminato la stampa
-
-noop: #aspè, devo rivedere sui pdf delle cose..
-
+                blez  $t3, caricasuccessivo  #se $t1<=0 allora carico il successivo
+ 		la $a0, $t1     # stampo l'elemento # del record
+		li $v0,4	# chiamo la syscall con il 4 per fare una printf
+		syscall  
+		addi $t1, $t1, 4	#incremento di 4 byte per puntare al prossimo "campo" del record		
+		addi $t3, $t3, -4   #decremento il contatore di 4 byte
+		bgtz $t3, loopScorriLista #se è maggiore, vuol dire che ho ancora roba da stampare, e torno su
+	caricasuccessivo:
+		lw $t1, 12($t1)
+		addi $t2,$t2, -1 #decremento gli elementi rimanenti
+		lw $t3,24        #ri-inizializzo il numero di byte da leggere
+		#if t1!=null loopscorrilista else go out
 	
 
 
