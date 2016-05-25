@@ -301,6 +301,7 @@ case6: # Cambia politica di scheduling
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
 
+	addi $t2, $t2, -1
 	bne $t2, $zero, L1Sched	 #se $t2!=0 allora salto
 	jal sortByPriority #eseguo un'ordinamento per priorità
 
@@ -310,7 +311,7 @@ case6: # Cambia politica di scheduling
 
 	L1Sched:
 	jal sortByExec #eseguo un'ordinamento per esecuzioni rimanenti
-	addi $t2, $zero, 1
+	li $t2, 1
 	sw $t2, flagScheduling	# variabile flag di scheduling = 1
 
 	L2Sched:
@@ -891,7 +892,7 @@ sortByExec:
 	lw $t1, length      # carico la lunghezza della lista
 
 	loopSortExec:
-		li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+		li $t3, 0	# $t3 = registro di appoggio per priorità più grande
 		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
@@ -921,7 +922,7 @@ sortByExec:
 		exitLoopFindExec:
 	# arrivato qui ho in $t4 il task da posizionare in fondo
 	# ma devo capire se sto cambiando di posto a head o tail
-	bne $zero, $t9, jumpSwapHead	# $t9 (flag) != 0 posso saltare
+	bne $zero, $t9, jumpSwapHeadExec	# $t9 (flag) != 0 posso saltare
 	# altrimento sto inserendo il task in fondo quindi devo modificare il puntatore di tail
 	sw $t4, tail
 	li $t9, 1	#modifico valore di flag a 1, così non torna più qui
@@ -953,7 +954,8 @@ sortByExec:
 
 
 exitSortByExec:
-	sw $zero, flagScheduling	#aggiorno flagScheduling con politica attuale
+	li $t6, 1
+	sw $t6, flagScheduling	#aggiorno flagScheduling con politica attuale
 	lw $s2, 8($sp)
 	lw $s1, 4($sp)
 	lw $s0, 0($sp)
