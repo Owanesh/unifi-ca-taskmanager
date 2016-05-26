@@ -18,6 +18,7 @@ item4: .asciiz "4) Elimina uno specifico task"
 item5: .asciiz "5) Modifica priorita di uno specifico task"
 item6: .asciiz "6) Cambia politica di scheduling"
 item7: .asciiz "7) Esci dal programma"
+spaceTab: .asciiz "   "
 strErrore: .asciiz "Opzione errata! "
 strErroreID: .asciiz "Opzione errata! L'ID deve essere maggiore di 0."
 strTaskNotFound: .asciiz "Errore: Task inesistente."
@@ -30,7 +31,7 @@ strInsPriorita: .asciiz "Inserisci Priorità (0->minima, 9->massima): "
 strInsNome: .asciiz "Inserisci Nome (Max 8 caratteri): "
 strInsExec: .asciiz "Inserisci numero di esecuzioni (1->minimo, 99->massimo): "
 strIsEmpty: .asciiz "Errore! La lista è vuota"
-tableHead: .asciiz "|  ID  |  PRIORITA'  |  NOME TASK  |  ESECUZ. RIMANENTI |"
+tableHead: .asciiz "|   ID   | PRIORITA'  | NOME TASK | ESECUZ. RIMANENTI |"
 
 
 
@@ -91,7 +92,8 @@ choice:
 
 branch_case:
 	# se arrivo qui l'opzione digitata era corretta
-	addi $t2, $t2, -1 	# tolgo 1 da scelta perche' prima azione nella jump table (in posizione 0) corrisponde alla prima scelta del case
+	addi $t2, $t2, -1 	# tolgo 1 da scelta perche' prima azione nella jump table (in posizione 0)
+				# corrisponde alla prima scelta del case
 	add $t0, $t2, $t2
 	add $t0, $t0, $t0 	# ho calcolato (scelta-1) * 4
 	add $t0, $t0, $s0 	# sommo all'indirizzo base della JAT l'offset appena calcolato
@@ -116,7 +118,8 @@ case1: # Inserimento nuovo task
 
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
-case2: # Esecuzione prossimo task (in base alla politica di scheduling adottata, il prossimo task da eseguire è quello puntato da tail)
+case2:  # Esecuzione prossimo task (in base alla politica di scheduling adottata,
+	# il prossimo task da eseguire è quello puntato da tail)
 	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
@@ -306,6 +309,7 @@ case6: # Cambia politica di scheduling
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
 
+	addi $t2, $t2, -1
 	bne $t2, $zero, L1Sched	 #se $t2!=0 allora salto
 	jal sortByPriority #eseguo un'ordinamento per priorità
 
@@ -315,7 +319,7 @@ case6: # Cambia politica di scheduling
 
 	L1Sched:
 	jal sortByExec #eseguo un'ordinamento per esecuzioni rimanenti
-	addi $t2, $zero, 1
+	li $t2, 1
 	sw $t2, flagScheduling	# variabile flag di scheduling = 1
 
 	L2Sched:
@@ -363,7 +367,7 @@ choice_err2:
 
 
 #====================================================================================
-#++--++--++--++--++--++-- PROCEDURA GET_ID ========================================
+#++--++--++--++--++--++-- PROCEDURA GET_ID ==========================================
 #====================================================================================
 getID:
 	loopGetID:
@@ -571,7 +575,8 @@ executeTask:
 	addi $sp, $sp, 8
 	beqz $v0, exitExecute	# se $v0==0 allora la lista è vuota e termino la procedura
 
-	addi $sp, $sp, -4	# $a0 possiede già l'argomento di searchTaskByID, inoltre non mi interessa più preservarne il contenuto
+	addi $sp, $sp, -4	# $a0 possiede già l'argomento di searchTaskByID,
+				# inoltre non mi interessa più preservarne il contenuto
 	sw $ra, 0($sp)
 	jal searchTaskByID	# cerca il task e ritorna in $v0 l'indirizzo del record
 	lw $ra, 0($sp)
@@ -592,7 +597,8 @@ executeTask:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	lw $a0, 0($t0)	# $a0 = ID del task da eliminare
-	jal removeTask	#richiamo la removeTask per eliminare l'ultimo nodo che ha terminato l'esecuzione, riceve come argomento l'ID
+	jal removeTask	# richiamo la removeTask per eliminare l'ultimo nodo che ha 
+		        # terminato l'esecuzione, riceve come argomento l'ID
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
@@ -623,7 +629,8 @@ searchTaskByID:
 
 	move $t1, $a0	# $t1 = ID da cercare
 	lw $t0, head	# $t0 = indirizzo del primo nodo, sarà usato come appoggio per scorrere la lista
-	li $v0, -1	# $v0 = inizializzo variabile di ritorno a -1, se il task verrà individuato allora sarà modificato nel corso della ricerca
+	li $v0, -1	# $v0 = inizializzo variabile di ritorno a -1, se il task verrà
+			# individuato allora sarà modificato nel corso della ricerca
 	move $t3, $t0	# $t3 = conterrà l'indirizzo del nodo precedente
 
 	loopSearch:
@@ -692,7 +699,8 @@ removeTask:
 
 	# per esclusione devo rimuovere un generico nodo
 	lw $t4, 12($t0)	# $t4 = indirizzo del nodo successivo a quello da eliminare
-	sw $t4, 12($t1) # sovrascrivo il campo "nodo successivo" del precedente, ho così eliminato logicamente il riferimento al nodo da eliminare
+	sw $t4, 12($t1) # sovrascrivo il campo "nodo successivo" del precedente
+			# ho così eliminato logicamente il riferimento al nodo da eliminare
 	lw $t4, length
 	addi $t4, $t4, -1	#decremento la lunghezza della lista
 	sw $t4, length
@@ -766,9 +774,8 @@ changePriority:
 
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 4($t1)	#salvo nel record il valore inserito
-
-
-exitChangePriority:
+	
+	exitChangePriority:
 	jr $ra
 
 	choice_change_priorita: 	#gestisce errore di inserimento priorità sbagliata
@@ -815,13 +822,16 @@ sortByPriority:
 		move $t2, $t1	#$t2 = contatore ciclo find
 		#prima trovo il minimo
 		loopFind:
-			lw $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record)
- 			bgt $t5, $t3, jumpLoopFind1  #se $t5>$t3 allora proseguo al prossimo nodo (mantengo il task con la priorità minima per metterlo in fondo)
+			lw $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0,
+						# salto 4 byte di offset (cfr. schema del record)
+ 			bgt $t5, $t3, jumpLoopFind1     # se $t5>$t3 allora proseguo al prossimo nodo
+ 							# (mantengo il task con la priorità minima per metterlo in fondo)
  			bne $t5, $t3, set
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
  			lw $s0, 0($t0)	# $s0=ID task appena letto
  			lw $t6, 0($t4)	# $t6 = ID task minimo
- 			bge $s0, $t6, jumpLoopFind1	#se il nuovo task ha un ID maggiore o uguale del task in $t4 allora non cambio niente
+ 			bge $s0, $t6, jumpLoopFind1	# se il nuovo task ha un ID maggiore o 
+ 							# uguale del task in $t4 allora non cambio niente
  			set:
  			move $t3, $t5	# altrimenti ho trovato un nuovo minimo, salvo il valore della priorità
  			lw $s1, 0($t0)	# salvo in $s1 l'ID del task minimo,
@@ -896,7 +906,7 @@ sortByExec:
 	lw $t1, length      # carico la lunghezza della lista
 
 	loopSortExec:
-		li $t3, 10	# $t3 = registro di appoggio per priorità più grande
+		li $t3, 0	# $t3 = registro di appoggio per priorità più grande
 		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
@@ -905,13 +915,16 @@ sortByExec:
 		move $t2, $t1	#$t2 = contatore ciclo find
 		#prima trovo il minimo
 		loopFindExec:
-			lw $t5, 8($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0, salto 4 byte di offset (cfr. schema del record)
- 			blt $t5, $t3, jumpLoopFind1Exec  #se $t5>$t3 allora proseguo al prossimo nodo (mantengo il task con la priorità minima per metterlo in fondo)
+			lw $t5, 8($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0,
+						# salto 4 byte di offset (cfr. schema del record)
+ 			blt $t5, $t3, jumpLoopFind1Exec  # se $t5>$t3 allora proseguo al prossimo nodo
+ 							 # (mantengo il task con la priorità minima per metterlo in fondo)
  			bne $t5, $t3, setExec
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
  			lw $s0, 0($t0)	# $s0=ID task appena letto
  			lw $t6, 0($t4)	# $t6 = ID task minimo
- 			bge $s0, $t6, jumpLoopFind1Exec	#se il nuovo task ha un ID maggiore o uguale del task in $t4 allora non cambio niente
+ 			bge $s0, $t6, jumpLoopFind1Exec	#se il nuovo task ha un ID maggiore 
+ 							# o uguale del task in $t4 allora non cambio niente
  			setExec:
  			move $t3, $t5	# altrimenti ho trovato un nuovo minimo, salvo il valore della priorità
  			lw $s1, 0($t0)	# salvo in $s1 l'ID del task minimo,
@@ -926,7 +939,7 @@ sortByExec:
 		exitLoopFindExec:
 	# arrivato qui ho in $t4 il task da posizionare in fondo
 	# ma devo capire se sto cambiando di posto a head o tail
-	bne $zero, $t9, jumpSwapHead	# $t9 (flag) != 0 posso saltare
+	bne $zero, $t9, jumpSwapHeadExec	# $t9 (flag) != 0 posso saltare
 	# altrimento sto inserendo il task in fondo quindi devo modificare il puntatore di tail
 	sw $t4, tail
 	li $t9, 1	#modifico valore di flag a 1, così non torna più qui
@@ -958,7 +971,8 @@ sortByExec:
 
 
 exitSortByExec:
-	sw $zero, flagScheduling	#aggiorno flagScheduling con politica attuale
+	li $t6, 1
+	sw $t6, flagScheduling	#aggiorno flagScheduling con politica attuale
 	lw $s2, 8($sp)
 	lw $s1, 4($sp)
 	lw $s0, 0($sp)
@@ -972,6 +986,9 @@ exitSortByExec:
 #====================================================================================
 
 printTasks:
+	li $v0, 11	#ritorno a capo (\n)
+	addi $a0, $zero, 10
+	syscall
 	la $a0, tableHead   # stampo la tablehead
 	li $v0,4
 	syscall
@@ -993,23 +1010,35 @@ printTasks:
 		li $v0, 11	#stampo '|'
 		li $a0, 124
 		syscall
-
+	la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		lw $t2, 0($t0)	# carico l'ID (offset 0)
 		li $v0, 1	# e stampo il valore
 		move $a0, $t2
 		syscall
+		la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		li $v0, 11	#stampo '|'
 		li $a0, 124
 		syscall
-
+la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		lw $t2, 4($t0)	# carico la priorità (offset 4)
 		li $v0, 1	# e stampo il valore
 		move $a0, $t2
 		syscall
+		la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		li $v0, 11	#stampo '|'
 		li $a0, 124
 		syscall
-
+la $a0 spaceTab
+  	li $v0,4
+  	syscall
 
 		la $t9, 16($t0)	#uso un registro di appoggio per scorrere byte per byte il nome da stampare
 		li $t5, 10	#carattere '\n' (a capo)
@@ -1021,24 +1050,34 @@ printTasks:
 		li $v0, 11	#stampo il carattere
 		move $a0, $t4
 		syscall
+ 
 		j loopPrintNome
-
+ 
 		exitLoopPrintNome:
+		la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		li $v0, 11	#stampo '|'
 		li $a0, 124
 		syscall
-
+la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		lw $t2, 8($t0)	# carico le esecuzoni rimanenti (offset 8)
 		li $v0, 1	# e stampo il valore
 		move $a0, $t2
 		syscall
+		la $a0 spaceTab
+  	li $v0,4
+  	syscall
 		li $v0, 11	#stampo '|'
 		li $a0, 124
 		syscall
+ 
 		li $v0, 11	#ritorno a capo (\n)
 		addi $a0, $zero, 10
 		syscall
-
+ 
 		lw $t0, 12($t0)	# procedo al prossimo nodo
 		j loopPrint	#rieseguo il ciclo
 
