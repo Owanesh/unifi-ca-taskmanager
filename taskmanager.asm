@@ -1,3 +1,8 @@
+#Mauro Matteo - matteo.mauro@stud.unifi.it
+#Busiello Salvatore - salvatore.busiello@stud.unifi.it
+#Milicia Lorenzo - lorenzo.milicia1@stud.unifi.it
+
+
 .data
 
 length: .word 0
