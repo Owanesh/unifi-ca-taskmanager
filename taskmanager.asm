@@ -9,7 +9,7 @@ length: .word 0
 head: .word 0
 tail: .word 0
 contatoreID: .word 1
-flagScheduling: .word 0		#default==0 (scheduling per priorità)
+flagScheduling: .word 0	#default==0 (scheduling per priorità)
 jump_table: .space 28 # jump table a 7 word, corrispondenti alle 7 scelte del menù
 item1: .asciiz "1) Inserire un nuovo task"
 item2: .asciiz "2) Eseguire il task in testa alla coda"
@@ -275,16 +275,6 @@ case5: # Modifica priorità di uno specifico task
 
 case6: # Cambia politica di scheduling
 
-	# controllo se la lista è vuota
-	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
-	sw $t1, 0($sp)
-	sw $ra, 4($sp)
-	jal isEmpty		#richiamo procedura isEmpty per verificare che la lista non sia vuota
-	lw $ra, 4($sp)
-	lw $t1, 0($sp)
-	addi $sp,$sp, 8
-	beqz $v0, lblExitCase6	#se $v0==0 allora la lista è vuota, ritorno al menù principale
-
 	loopSchedulingChoice:
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
@@ -514,6 +504,9 @@ insertTask:
       	li $a1, 9	#MAX 8 caratteri
         li $v0, 8	# legge stringa digitata
 	syscall
+	lb $t2, 0($t1)
+	beq $t2, 10, choice_err_nome
+	beq $t2, 32,  choice_err_nome
 	#------------------------------------------------------------------
 
 	#aggiorno length
@@ -558,6 +551,15 @@ insertTask:
      	la $a0, strErrore
       	syscall
       	j lblInsExec	# ritorna alla richiesta di inserimento esecuzioni rimanenti
+      	
+      	choice_err_nome: 	#gestisce errore di inserimento esecuzioni sbagliate
+	li $v0, 11		#ritorno a capo (\n)
+	addi $a0, $zero, 10
+	syscall
+	li $v0, 4  		# stampa la stringa d'errore
+     	la $a0, strErrore
+      	syscall
+      	j lblInsNome	# ritorna alla richiesta di inserimento nome
 
 
 
@@ -809,12 +811,12 @@ sortByPriority:
 	sw $s0, 0($sp)
 	sw $s1, 4($sp)
 	sw $s2, 8($sp)
-	move $t9, $zero	# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
-	lw $t1, length      # carico la lunghezza della lista
+	move $t9, $zero		# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
+	lw $t1, length    	# carico la lunghezza della lista
 
 	loopSort:
 		li $t3, 10	# $t3 = registro di appoggio per priorità più grande
-		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
+		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più minore
 		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
 		addi $t1, $t1, -1	#decremento il contatore del ciclo esterno
@@ -865,7 +867,7 @@ sortByPriority:
 	lw $t6, 12($t0)
 	sw $t6, 12($t4)
 	sw $t4, 12($t0)
-	j loopSort
+	j jumpIgnore
 
 	jumpSwap:
 	lw $t6, 12($t4)
@@ -902,26 +904,26 @@ sortByExec:
 	sw $s0, 0($sp)
 	sw $s1, 4($sp)
 	sw $s2, 8($sp)
-	move $t9, $zero	# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
-	lw $t1, length      # carico la lunghezza della lista
+	move $t9, $zero		# $t9 = flag per gestire primo scambio (necessario per aggiornare puntatore tail)
+	lw $t1, length      	# carico la lunghezza della lista
 
 	loopSortExec:
-		li $t3, 0	# $t3 = registro di appoggio per priorità più grande
-		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con priorità più grande
-		lw $t0, head	#$t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
+		li $t3, 0	# $t3 = registro di appoggio per esecuzione rimanenti più piccole
+		lw $t4, head	# $t4 = registro di appoggio per l'indirizzo del task con esecuzioni più grande
+		lw $t0, head	# $t0 = indirizzo del primo nodo, verrà usato per scorrere la lista
 		lw $t7, head
 		addi $t1, $t1, -1	#decremento il contatore del ciclo esterno
 		blez $t1, exitSortByExec	#se $t1<=0 allora ho terminato il sort
 		move $t2, $t1	#$t2 = contatore ciclo find
-		#prima trovo il minimo
+		#prima trovo il task con esecuzioni maggiori
 		loopFindExec:
-			lw $t5, 8($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0,
-						# salto 4 byte di offset (cfr. schema del record)
+			lw $t5, 8($t0)     	# $t5 = esecuzioni del task il cui indirizzo è in $t0,
+						# salto 8 byte di offset (cfr. schema del record)
  			blt $t5, $t3, jumpLoopFind1Exec  # se $t5>$t3 allora proseguo al prossimo nodo
  							 # (mantengo il task con la priorità minima per metterlo in fondo)
  			bne $t5, $t3, setExec
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
- 			lw $s0, 0($t0)	# $s0=ID task appena letto
+ 			lw $s0, 0($t0)	# $s0 = ID task appena letto
  			lw $t6, 0($t4)	# $t6 = ID task minimo
  			bge $s0, $t6, jumpLoopFind1Exec	#se il nuovo task ha un ID maggiore 
  							# o uguale del task in $t4 allora non cambio niente
@@ -955,7 +957,7 @@ sortByExec:
 	lw $t6, 12($t0)
 	sw $t6, 12($t4)
 	sw $t4, 12($t0)
-	j loopSortExec
+	j jumpIgnoreExec
 
 	jumpSwapExec:
 	lw $t6, 12($t4)
