@@ -147,7 +147,8 @@ case2:  # Esecuzione prossimo task (in base alla politica di scheduling adottata
 	jal printTasks	#stampo l'elenco dei task all'interno della lista
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
-	lblExitCase2:
+	
+lblExitCase2:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case3: # Esecuzione specifico task
@@ -183,7 +184,8 @@ case3: # Esecuzione specifico task
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-	lblExitCase3:
+lblExitCase3:
+
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case4: # Eliminazione specifico task
@@ -219,7 +221,7 @@ case4: # Eliminazione specifico task
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-	lblExitCase4:
+lblExitCase4:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case5: # Modifica priorità di uno specifico task
@@ -259,10 +261,10 @@ case5: # Modifica priorità di uno specifico task
 	jal sortByPriority #altrimenti eseguo sort per priorità
 	j lbl9
 
-	lbl8:
+lbl8:
 	jal sortByExec
 
-	lbl9:
+lbl9:
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, 8
@@ -273,7 +275,7 @@ case5: # Modifica priorità di uno specifico task
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-	lblExitCase5:
+lblExitCase5:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case6: # Cambia politica di scheduling
@@ -310,12 +312,12 @@ case6: # Cambia politica di scheduling
 	sw $t2, flagScheduling	# variabile flag di scheduling = 0
 	j L2Sched
 
-	L1Sched:
+L1Sched:
 	jal sortByExec #eseguo un'ordinamento per esecuzioni rimanenti
 	li $t2, 1
 	sw $t2, flagScheduling	# variabile flag di scheduling = 1
 
-	L2Sched:
+L2Sched:
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, 8
@@ -326,7 +328,8 @@ case6: # Cambia politica di scheduling
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-	lblExitCase6:
+lblExitCase6:
+
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case7: # Termina programma
@@ -380,7 +383,7 @@ getID:
 	move $v0, $t2
 	jr $ra
 
-	choice_err_getID:
+choice_err_getID:
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -410,7 +413,7 @@ isEmpty:
       	syscall
 	move $v0, $zero
 
-	exitIsEmpty:
+exitIsEmpty:
 	jr $ra
 
 
