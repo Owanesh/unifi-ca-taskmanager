@@ -334,9 +334,6 @@ lblExitCase6:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case7: # Termina programma
-	lw $ra, 4($sp)
-	lw $t1, 0($sp)
-	addi $sp,$sp, 8
 	jr $ra
 #-----------------------------------------------------------------------------
 #etichette per la gestione degli errori di input da parte dell'utente
