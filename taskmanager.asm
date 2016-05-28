@@ -1,7 +1,10 @@
+#########################################################
+Architettura degli elaboratori - TaskManager
+#########################################################
 #Mauro Matteo - matteo.mauro@stud.unifi.it
 #Busiello Salvatore - salvatore.busiello@stud.unifi.it
 #Milicia Lorenzo - lorenzo.milicia1@stud.unifi.it
-
+#########################################################
 
 .data
 
@@ -551,7 +554,7 @@ insertTask:
      	la $a0, strErrore
       	syscall
       	j lblInsExec	# ritorna alla richiesta di inserimento esecuzioni rimanenti
-      	
+
       	choice_err_nome: 	#gestisce errore di inserimento esecuzioni sbagliate
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
@@ -599,7 +602,7 @@ executeTask:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	lw $a0, 0($t0)	# $a0 = ID del task da eliminare
-	jal removeTask	# richiamo la removeTask per eliminare l'ultimo nodo che ha 
+	jal removeTask	# richiamo la removeTask per eliminare l'ultimo nodo che ha
 		        # terminato l'esecuzione, riceve come argomento l'ID
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
@@ -776,7 +779,7 @@ changePriority:
 
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 4($t1)	#salvo nel record il valore inserito
-	
+
 	exitChangePriority:
 	jr $ra
 
@@ -832,7 +835,7 @@ sortByPriority:
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
  			lw $s0, 0($t0)	# $s0=ID task appena letto
  			lw $t6, 0($t4)	# $t6 = ID task minimo
- 			bge $s0, $t6, jumpLoopFind1	# se il nuovo task ha un ID maggiore o 
+ 			bge $s0, $t6, jumpLoopFind1	# se il nuovo task ha un ID maggiore o
  							# uguale del task in $t4 allora non cambio niente
  			set:
  			move $t3, $t5	# altrimenti ho trovato un nuovo minimo, salvo il valore della priorità
@@ -925,7 +928,7 @@ sortByExec:
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
  			lw $s0, 0($t0)	# $s0 = ID task appena letto
  			lw $t6, 0($t4)	# $t6 = ID task minimo
- 			bge $s0, $t6, jumpLoopFind1Exec	#se il nuovo task ha un ID maggiore 
+ 			bge $s0, $t6, jumpLoopFind1Exec	#se il nuovo task ha un ID maggiore
  							# o uguale del task in $t4 allora non cambio niente
  			setExec:
  			move $t3, $t5	# altrimenti ho trovato un nuovo minimo, salvo il valore della priorità
@@ -1052,9 +1055,9 @@ la $a0 spaceTab
 		li $v0, 11	#stampo il carattere
 		move $a0, $t4
 		syscall
- 
+
 		j loopPrintNome
- 
+
 		exitLoopPrintNome:
 		la $a0 spaceTab
   	li $v0,4
@@ -1075,11 +1078,11 @@ la $a0 spaceTab
 		li $v0, 11	#stampo '|'
 		li $a0, 124
 		syscall
- 
+
 		li $v0, 11	#ritorno a capo (\n)
 		addi $a0, $zero, 10
 		syscall
- 
+
 		lw $t0, 12($t0)	# procedo al prossimo nodo
 		j loopPrint	#rieseguo il ciclo
 
