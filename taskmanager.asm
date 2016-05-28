@@ -11,8 +11,8 @@ tail: .word 0
 contatoreID: .word 1
 flagScheduling: .word 0		#default==0 (scheduling per priorità)
 jump_table: .space 28 # jump table a 7 word, corrispondenti alle 7 scelte del menù
-item1: .asciiz "1) Inserire un nuovo task"
-item2: .asciiz "2) Eseguire il task in testa alla coda"
+item1: .asciiz "1) Inserire un nuovo task\n 2) Eseguire il task in testa alla coda"
+item2: .asciiz ""
 item3: .asciiz "3) Esegui uno specifico task"
 item4: .asciiz "4) Elimina uno specifico task"
 item5: .asciiz "5) Modifica priorita di uno specifico task"
@@ -133,8 +133,7 @@ case2:  # Esecuzione prossimo task (in base alla politica di scheduling adottata
 	sw $t1, 0($sp)
 	sw $ra, 4($sp)
 	lw $a0, tail		# prima carica in $a0 l'indirizzo dell'ultimo nodo
-	lw $a0, 0($a0)		# dopo carica in $a0 l'ID dell'ultimo nodo (executeTask richiede l'ID del task da 
-				#eseguire)
+	lw $a0, 0($a0)		# dopo carica in $a0 l'ID dell'ultimo nodo (executeTask richiede l'ID del task da eseguire)
 	jal executeTask		#esegue il prossimo task
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
@@ -145,8 +144,7 @@ case2:  # Esecuzione prossimo task (in base alla politica di scheduling adottata
 	jal printTasks	#stampo l'elenco dei task all'interno della lista
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
-	
-lblExitCase2:
+	lblExitCase2:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case3: # Esecuzione specifico task
@@ -182,7 +180,7 @@ case3: # Esecuzione specifico task
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-lblExitCase3:
+	lblExitCase3:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case4: # Eliminazione specifico task
@@ -218,8 +216,7 @@ case4: # Eliminazione specifico task
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-lblExitCase4:
-
+	lblExitCase4:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case5: # Modifica priorità di uno specifico task
@@ -259,10 +256,10 @@ case5: # Modifica priorità di uno specifico task
 	jal sortByPriority #altrimenti eseguo sort per priorità
 	j lbl9
 
-lbl8:
+	lbl8:
 	jal sortByExec
 
-lbl9:
+	lbl9:
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, 8
@@ -273,8 +270,7 @@ lbl9:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-lblExitCase5:
-
+	lblExitCase5:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case6: # Cambia politica di scheduling
@@ -289,7 +285,7 @@ case6: # Cambia politica di scheduling
 	addi $sp,$sp, 8
 	beqz $v0, lblExitCase6	#se $v0==0 allora la lista è vuota, ritorno al menù principale
 
-loopSchedulingChoice:
+	loopSchedulingChoice:
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -321,12 +317,12 @@ loopSchedulingChoice:
 	sw $t2, flagScheduling	# variabile flag di scheduling = 0
 	j L2Sched
 
-L1Sched:
+	L1Sched:
 	jal sortByExec #eseguo un'ordinamento per esecuzioni rimanenti
 	li $t2, 1
 	sw $t2, flagScheduling	# variabile flag di scheduling = 1
 
-L2Sched:
+	L2Sched:
 	lw $ra, 4($sp)
 	lw $t1, 0($sp)
 	addi $sp,$sp, 8
@@ -337,8 +333,7 @@ L2Sched:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-lblExitCase6:
-
+	lblExitCase6:
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case7: # Termina programma
@@ -374,7 +369,7 @@ choice_err2:
 #====================================================================================
 #++--++--++--++--++--++-- PROCEDURA GET_ID ==========================================
 #====================================================================================
-getID:  #??
+getID:
 	loopGetID:
 	#richiesta inserimento ID
 	li $v0, 4
@@ -392,7 +387,7 @@ getID:  #??
 	move $v0, $t2
 	jr $ra
 
-choice_err_getID:
+	choice_err_getID:
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -412,7 +407,7 @@ isEmpty:
 	li $v0, 1
 	j exitIsEmpty
 
-return0:
+	return0:
 	# stampa la stringa d'errore
 	li $v0, 11	#ritorno a capo (\n)
 	li $a0, 10
@@ -422,7 +417,7 @@ return0:
       	syscall
 	move $v0, $zero
 
-exitIsEmpty:
+	exitIsEmpty:
 	jr $ra
 
 
@@ -442,13 +437,13 @@ insertTask:
 	sw $t1, tail
 	j jumpInsID
 
-link_last:      # se la coda e' non vuota, collega l'ultimo elemento della lista,
+	link_last:      # se la coda e' non vuota, collega l'ultimo elemento della lista,
 			# puntato da tail (t9) al nuovo record; dopodiche' modifica tail
 			# per farlo puntare al nuovo record
 	sw $t1, 12($t9)  # il campo elemento successivo dell'ultimo record prende $t1
 	sw $t1, tail    #aggiorno puntatore tail a $t1
 
-jumpInsID:
+	jumpInsID:
 	#inserisco campo ID autoincrementante
 	lw $t2, contatoreID	#carico dalla memoria l'ID da assegnare
 	sw $t2, 0($t1)	#salvo nel record il valore inserito
@@ -456,12 +451,11 @@ jumpInsID:
 	addi $t2, $t2, 1	#incremento ID e salvo
 	sw $t2, contatoreID
 
-jumpInput:
+	jumpInput:
 	li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
-	
-lblInsPriorita:
+	lblInsPriorita:
 	li $v0, 4
      	la $a0, strInsPriorita
       	syscall
@@ -511,8 +505,7 @@ lblInsPriorita:
 	li $v0, 11	#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
-	
-lblInsNome:
+	lblInsNome:
 	li $v0, 4
      	la $a0, strInsNome
       	syscall
@@ -536,10 +529,10 @@ lblInsNome:
 	jal sortByPriority #altrimenti eseguo sort per priorità
 	j lbl2
 
-lbl1:
+	lbl1:
 	jal sortByExec
 
-lbl2:
+	lbl2:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
@@ -548,7 +541,7 @@ lbl2:
 #-----------------------------------------------------------------------------
 #etichette per la gestione degli errori di input da parte dell'utente
 
-choice_err_priorita: 	#gestisce errore di inserimento priorità sbagliata
+	choice_err_priorita: 	#gestisce errore di inserimento priorità sbagliata
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -557,7 +550,7 @@ choice_err_priorita: 	#gestisce errore di inserimento priorità sbagliata
       	syscall
       	j lblInsPriorita  	# ritorna alla richiesta di inserimento priorità
 
-choice_err_exec: 	#gestisce errore di inserimento esecuzioni sbagliate
+	choice_err_exec: 	#gestisce errore di inserimento esecuzioni sbagliate
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -600,7 +593,7 @@ executeTask:
 	sw $t1, 8($t0)	#altrimenti salvo il valore aggiornato
 	j exitExecute
 
-remove:
+	remove:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	lw $a0, 0($t0)	# $a0 = ID del task da eliminare
@@ -609,7 +602,7 @@ remove:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
-exitExecute:
+	exitExecute:
 	jr $ra
 
 
@@ -640,8 +633,7 @@ searchTaskByID:
 			# individuato allora sarà modificato nel corso della ricerca
 	move $t3, $t0	# $t3 = conterrà l'indirizzo del nodo precedente
 
-loopSearch:
-
+	loopSearch:
 	beqz $t0, exitSearch	# se $t0==0 allora il puntatore è nullo, ho raggiunto la fine della lista ed esco
 	lw $t2, 0($t0)	# $t2 = variabile d'appoggio per l'ID del nodo attuale
 	beq $t2, $t1, returnRst	#se $t2==$t1 ho trovato il task, esco dal ciclo
@@ -649,14 +641,12 @@ loopSearch:
 	lw $t0, 12($t0)	#altrimenti procedo al prossimo nodo e rieseguo il ciclo
 	j loopSearch
 
-returnRst:
-
+	returnRst:
 	move $v0, $t0	# $v0 = indirizzo del task trovato (salvato in $t0)
 	move $v1, $t3	# $v1 = indirizzo del nodo precedente (utile nel caso di remove)
 	jr $ra
 
-exitSearch:
-
+	exitSearch:
 	li $v0, 4
 	la $a0, strTaskNotFound	# stampo messaggio d'errrore
 	syscall
@@ -687,11 +677,9 @@ removeTask:
 	addi $sp, $sp, 8
 	beqz $v0, exitRemove	# se $v0==0 allora la lista è vuota e termino la procedura
 
-	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato 
-				#a searchTaskByID
+	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato a searchTaskByID
 	sw $ra, 0($sp)
-	jal searchTaskByID	# cerca il task e ritorna: $v0 -> indirizzo del record, $v1 -> indirizzo del nodo 
-				#precedente
+	jal searchTaskByID	# cerca il task e ritorna: $v0 -> indirizzo del record, $v1 -> indirizzo del nodo precedente
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
@@ -707,8 +695,7 @@ removeTask:
 	beq $t4, $t3, removeHead	# se $t4==$t3 allora devo eliminare il primo nodo, salto a removeHead
 	lw $t3, tail	#carico indirizzo ultimo nodo
 	lw $t3, 0($t3)	#carico ID ultimo nodo
-	beq $t4, $t3, removeTail	# altrimenti se $t4==$t3 allora devo eliminare l'ultimo nodo, salto a 
-					#removeTail
+	beq $t4, $t3, removeTail	# altrimenti se $t4==$t3 allora devo eliminare l'ultimo nodo, salto a removeTail
 
 	# per esclusione devo rimuovere un generico nodo
 	lw $t4, 12($t0)	# $t4 = indirizzo del nodo successivo a quello da eliminare
@@ -719,8 +706,7 @@ removeTask:
 	sw $t4, length
 	j exitRemove
 
-removeHead:
-
+	removeHead:
 	lw $t4, 12($t0)	# ottengo indirizzo del 2° nodo della lista
 	sw $t4, head	# aggiorno l'indirizzo salvato in head
 	lw $t4, length
@@ -728,22 +714,19 @@ removeHead:
 	sw $t4, length
 	j exitRemove
 
-removeTail:
-
+	removeTail:
 	sw $zero, 12($t1)	# aggiorno a NULL (zero) il campo "nodo successivo" del penultimo task
 	sw $t1, tail	# aggiorno l'indirizzo salvato in tail
 	lw $t4, length
 	addi $t4, $t4, -1	#decremento la lunghezza della lista
 	sw $t4, length
 
-exitRemove:
-
+	exitRemove:
 	lw $t4, length
 	bnez $t4, exitRemove2
 	sw $zero, head
 	sw $zero, tail
-
-exitRemove2:
+	exitRemove2:
 	jr $ra
 
 #====================================================================================
@@ -760,8 +743,7 @@ changePriority:
 	addi $sp, $sp, 8
 	beqz $v0, exitChangePriority	# se $v0==0 allora la lista è vuota e termino la procedura
 
-	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato 
-				#a searchTaskByID
+	addi $sp, $sp, -4	#non mi interessa preservare il contenuto di $a0, che verrà direttamente passato a searchTaskByID
 	sw $ra, 0($sp)
 	jal searchTaskByID	# cerca il task e ritorna: $v0 -> indirizzo del record
 	lw $ra, 0($sp)
@@ -771,8 +753,7 @@ changePriority:
 	beq $t2, $v0, exitChangePriority	#se $v0==-1 allora il task non è stato trovato, esco direttamente
 	move $t1, $v0	# $t1 = indirizzo del task
 
-loopInsPriorita:
-
+	loopInsPriorita:
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -794,11 +775,10 @@ loopInsPriorita:
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 4($t1)	#salvo nel record il valore inserito
 	
-exitChangePriority:
-
+	exitChangePriority:
 	jr $ra
 
-choice_change_priorita: 	#gestisce errore di inserimento priorità sbagliata
+	choice_change_priorita: 	#gestisce errore di inserimento priorità sbagliata
 	li $v0, 11		#ritorno a capo (\n)
 	addi $a0, $zero, 10
 	syscall
@@ -845,8 +825,7 @@ sortByPriority:
 			lw $t5, 4($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0,
 						# salto 4 byte di offset (cfr. schema del record)
  			bgt $t5, $t3, jumpLoopFind1     # se $t5>$t3 allora proseguo al prossimo nodo
- 							# (mantengo il task con la priorità minima per metterlo in 
- 							#fondo)
+ 							# (mantengo il task con la priorità minima per metterlo in fondo)
  			bne $t5, $t3, set
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
  			lw $s0, 0($t0)	# $s0=ID task appena letto
@@ -892,8 +871,7 @@ sortByPriority:
 	lw $t6, 12($t4)
 	beqz $t6,jumpIgnore #Se è uguale a zero il successivo, vuol dire che il minimo trovato è il minimo assoluto,
 	# e quindi corrisponde anche al tail, è già in posizione, non ho bisogno di fare swap
-	beq $t6,$s2, jumpIgnore #Se il successivo, è l'ultimo elemento già posizionato, allora anche l'elemento 
-				#corrente è nella
+	beq $t6,$s2, jumpIgnore #Se il successivo, è l'ultimo elemento già posizionato, allora anche l'elemento corrente è nella
 	#sua posizione ideale
 	sw $t6, 12($t8)
 	lw $t6, 12($t0)
@@ -940,8 +918,7 @@ sortByExec:
 			lw $t5, 8($t0)     	# $t5 = priorità del task il cui indirizzo è in $t0,
 						# salto 4 byte di offset (cfr. schema del record)
  			blt $t5, $t3, jumpLoopFind1Exec  # se $t5>$t3 allora proseguo al prossimo nodo
- 							 # (mantengo il task con la priorità minima per metterlo 
- 							 #in fondo)
+ 							 # (mantengo il task con la priorità minima per metterlo in fondo)
  			bne $t5, $t3, setExec
  			#qui devo controllare gli ID prima di decidere se settare il task corrente come minimo
  			lw $s0, 0($t0)	# $s0=ID task appena letto
