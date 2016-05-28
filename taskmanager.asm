@@ -31,6 +31,7 @@ strInsID: .asciiz "Inserisci ID del task: "
 strLinea: .asciiz "-------------------------------------------------------"
 strInsPolitica: .asciiz "Scegliere politica di scheduling (1->Priorità, 2->Esecuzioni): "
 strInsPriorita: .asciiz "Inserisci Priorità (0->minima, 9->massima): "
+strInsChangePriorita: .asciiz "Inserisci Priorità (0->minima, 9->massima, -1 per uscire): "
 strInsNome: .asciiz "Inserisci Nome (Max 8 caratteri): "
 strInsExec: .asciiz "Inserisci numero di esecuzioni (1->minimo, 99->massimo): "
 strIsEmpty: .asciiz "Errore! La lista è vuota"
@@ -763,7 +764,7 @@ changePriority:
 	addi $a0, $zero, 10
 	syscall
 	li $v0, 4
-     	la $a0, strInsPriorita
+     	la $a0, strInsChangePriorita
       	syscall
       	 # l'utente digita un'opzione
         li $v0, 5		# legge intero digitato
@@ -771,6 +772,7 @@ changePriority:
 	move $t2, $v0   	# $t2 = opzione digitata
 
 	# controllo validità della scelta
+	beq $t2, -1, exitChangePriority	# -1 è l'opzione per uscire senza modificare niente
 	slt  $t0, $t2, $zero	# $t0=1 se scelta < 0
 	bne  $t0, $zero, choice_change_priorita # errore se $t0==1
 	li   $t0, 9
