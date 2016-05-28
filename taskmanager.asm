@@ -1,5 +1,5 @@
 #########################################################
-Architettura degli elaboratori - TaskManager
+#    Architettura degli elaboratori - TaskManager       #
 #########################################################
 #Mauro Matteo - matteo.mauro@stud.unifi.it
 #Busiello Salvatore - salvatore.busiello@stud.unifi.it
