@@ -8,6 +8,7 @@
 
 .data
 
+bufferChoice: .space 3
 length: .word 0
 head: .word 0
 tail: .word 0
@@ -23,6 +24,8 @@ item6: .asciiz "6) Cambia politica di scheduling"
 item7: .asciiz "7) Esci dal programma"
 spaceTab: .asciiz "   "
 strErrore: .asciiz "Opzione errata! "
+strIsNotCorrect: .asciiz "L'opzione digitata non appartiene al range!"
+strIsNotValid: .asciiz "L'opzione digitata contiene caratteri e/o simboli non validi!"
 strErroreID: .asciiz "Opzione errata! L'ID deve essere maggiore di 0."
 strTaskNotFound: .asciiz "Errore: Task inesistente."
 strEmptyList: .asciiz "La lista è vuota."
@@ -83,16 +86,24 @@ loopMainMenu:
 
 choice:
         # l'utente digita un'opzione
-        li $v0, 5		# legge intero digitato
+        li $v0, 8		# legge intero digitato
+        la $a0, bufferChoice
+        li $a1, 3
 	syscall
-	move $t2, $v0   	# $t2 = opzione digitata
-
-	# controllo validità della scelta
-	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
-	bne  $t0, $zero, choice_err # errore se $t0==1
-	li   $t0, 7
-	sle  $t0, $t2, $t0	#$t0=1 se scelta<=7
-	beq  $t0, $zero, choice_err # errore se $t0==0
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	li $a0, 1	# $a0 e $a1 definiscono il range valido di opzioni
+	li $a1, 7
+	jal isValid	# isValid controllerà se la stringa inserita è sintatticamente corretta,
+			# se il valore di ritorno in $v0 è uguale a 0 allora è corretta, altrimenti si ripete il ciclo
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	move $t2, $v0   	# $t2 = ritorno della procedura isValid
+	bnez $t2, choice_err	# se $t2!=0 allora la stringa non era corretta, salto per rieseguire il ciclo
+	#altrimenti significa che posso continuare
+	move $t2, $v1	# $t2 = numero digitato dall'utente
 
 branch_case:
 	# se arrivo qui l'opzione digitata era corretta
@@ -288,22 +299,30 @@ case6: # Cambia politica di scheduling
 	li $v0, 4
      	la $a0, strInsPolitica
       	syscall
-	# l'utente digita un'opzione
-        li $v0, 5		# legge intero digitato
+      	
+      	 # l'utente digita un'opzione
+        li $v0, 8		# legge intero digitato
+        la $a0, bufferChoice
+        li $a1, 3
 	syscall
-	move $t2, $v0   	# $t2 = opzione digitata
-
-	# controllo validità della scelta
-	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
-	bne  $t0, $zero, choice_err2 # errore se $t0==1
-	li   $t0, 2
-	sle  $t0, $t2, $t0	#$t0=1 se scelta<=2
-	beq  $t0, $zero, choice_err2 # errore se $t0==0
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	li $a0, 1	# $a0 e $a1 definiscono il range valido di opzioni
+	li $a1, 2
+	jal isValid	# isValid controllerà se la stringa inserita è sintatticamente corretta,
+			# se il valore di ritorno in $v0 è uguale a 0 allora è corretta, altrimenti si ripete il ciclo
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	move $t2, $v0   	# $t2 = ritorno della procedura isValid
+	bnez $t2, choice_err2	# se $t2!=0 allora la stringa non era corretta, salto per rieseguire il ciclo
+	#altrimenti significa che posso continuare
+	move $t2, $v1	# $t2 = numero digitato dall'utente
 
 	#se arrivo qui l'opzione digitata è corretta
-	addi $sp,$sp, -8	#salvo $t1 (indirizzo base JAT) e $ra
-	sw $t1, 0($sp)
-	sw $ra, 4($sp)
+	addi $sp,$sp, -4	
+	sw $ra, 0($sp)
 
 	addi $t2, $t2, -1
 	bne $t2, $zero, L1Sched	 #se $t2!=0 allora salto
@@ -319,9 +338,8 @@ L1Sched:
 	sw $t2, flagScheduling	# variabile flag di scheduling = 1
 
 L2Sched:
-	lw $ra, 4($sp)
-	lw $t1, 0($sp)
-	addi $sp,$sp, 8
+	lw $ra, 0($sp)
+	addi $sp,$sp, 4
 
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -330,7 +348,6 @@ L2Sched:
 	addi $sp, $sp, 4
 
 lblExitCase6:
-
 	j loopMainMenu 		# ritorna alla richiesta di inserimento
 
 case7: # Termina programma
@@ -359,23 +376,112 @@ choice_err2:
       	j loopSchedulingChoice  # ritorna alla richiesta di inserimento
 
 
+#====================================================================================
+#++--++--++--++--++--++-- PROCEDURA IS VALID ========================================
+#====================================================================================
+# input: $a0 -> range inferiore,  $a1 -> range superiore
+# output: $v0 -> 0 se l'opzione digitata è corretta, 1 altrimenti
+#	  $v1 -> numero digitato (il contenuto di questo registro sarà utile al chiamante se e solo se $v0==0)
+isValid:
+	move $t2, $zero	# $t2 = valore decimale corrispondente al valore inserito dall'utente
+	move $t3, $zero	#flag per il caso in cui l'utente digiti invio direttamente
+	la $t0, bufferChoice	#$t0 = indirizzo della stringa inserita dall'utente
+	#il numero inserito dall'utente potrebbe contenere lettere e/o simboli non validi, scorro la stringa letta per verificare che non ce ne siano
+	loopParsing:
+	lb $t1, 0($t0)	#leggo il primo carattere
+	beq $t1, 10, exitLoopParsing	#se $t1==10 allora ho raggiunto la fine della stringa
+	li $t3, 1	#se arrivo qui il primo carattere non era invio quindi modifico il flag
+	beqz $t1, exitLoopParsing	#se $t1==0 allora ho raggiunto la fine della stringa
+	addi $t1, $t1, -48	#se decremento il valore di 48 ottengo il corrispettivo valore decimale
+	bltz $t1, exitIsNotValid	#se $t1<0 allora non era una cifra, esco dalla procedura con messaggio d'errore
+	bgt $t1, 9, exitIsNotValid	#se $t1>9 allora non era una cifra, esco dalla procedura con messaggio d'errore
+	#se arrivo qui allora era una cifra, calcolo in $t2 ad ogni iterazione il numero inserito
+	mul $t2, $t2, 10	# il valore precedente viene moltiplicato per 10 perchè sto per aggiungere delle unità
+	add $t2, $t2, $t1	# sommo la cifra letta
+	addi $t0, $t0, 1	#procedo al prossimo carattere
+	j loopParsing
+	
+	exitLoopParsing:
+	#se arrivo qui la stringa conteneva solo cifre, inoltre in $t2 ho calcolato tale numero e non mi resta che verificare se
+	#è contenuto nel range corretto 
+	beqz $t3, exitIsNotValid	# se $t3==0 allora il primo carattere era un invio, esco con messaggio d'errore
+	blt $t2, $a0, exitIsNotCorrect	# se $t2 < $a0 allora non appartiene al range, esco dalla procedura con messaggio d'errore
+	bgt $t2, $a1, exitIsNotCorrect	# se $t2 > $a1 allora non appartiene al range, esco dalla procedura con messaggio d'errore
+	#altrimenti l'opzione digitata era corretta e posso uscire con $v0 = 0, ovvero nessun errore
+	move $v0, $zero	
+	move $v1, $t2	# $v1 = numero digitato dall'utente
+	la $t0, bufferChoice	# $t0 = indirizzo del buffer che conterrà la stringa dell'utente
+	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
+	addi $t0, $t0, 1
+	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
+	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, perciò mi rimane solo da tornare alla procedura chiamante
+	jr $ra
+	
+	exitIsNotCorrect:
+	li $v0, 11		#ritorno a capo (\n)
+	addi $a0, $zero, 10
+	syscall
+	li $v0, 4  		# stampa la stringa d'errore
+     	la $a0, strIsNotCorrect
+      	syscall
+	la $t0, bufferChoice	# $t0 = indirizzo del buffer che conterrà la stringa dell'utente
+	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
+	addi $t0, $t0, 1
+	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
+	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, perciò mi rimane solo da tornare alla procedura chiamante
+	li $v0, 1	# $v0=1 perchè la stringa non era valida
+	jr $ra
+
+	exitIsNotValid:
+	li $v0, 11		#ritorno a capo (\n)
+	addi $a0, $zero, 10
+	syscall
+	li $v0, 4  		# stampa la stringa d'errore
+     	la $a0, strIsNotValid
+      	syscall
+	la $t0, bufferChoice	# $t0 = indirizzo del buffer che conterrà la stringa dell'utente
+	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
+	addi $t0, $t0, 1
+	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
+	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, perciò mi rimane solo da tornare alla procedura chiamante
+	li $v0, 1	# $v0=1 perchè la stringa non era valida
+	jr $ra
+
+
+
+
+
 
 #====================================================================================
 #++--++--++--++--++--++-- PROCEDURA GET_ID ==========================================
 #====================================================================================
 getID:
 	loopGetID:
+	
 	#richiesta inserimento ID
 	li $v0, 4
 	la $a0, strInsID
 	syscall
-        li $v0, 5		# legge intero digitato
+	
+	 # l'utente digita un'opzione
+        li $v0, 8		# legge intero digitato
+        la $a0, bufferChoice
+        li $a1, 3
 	syscall
-	move $t2, $v0   	# $t2 = opzione digitata
-
-	# controllo validità della scelta (deve essere scelta>0 )
-	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
-	bne  $t0, $zero, choice_err_getID # errore se $t0==1
+	
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	li $a0, 1	# $a0 e $a1 definiscono il range valido di opzioni
+	li $a1, 999999	# per motivi pratici ipotizziamo che non possano esserci più di 999999 task in un'unica sessione
+	jal isValid	# isValid controllerà se la stringa inserita è sintatticamente corretta,
+			# se il valore di ritorno in $v0 è uguale a 0 allora è corretta, altrimenti si ripete il ciclo
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	move $t2, $v0   	# $t2 = ritorno della procedura isValid
+	bnez $t2, choice_err_getID	# se $t2!=0 allora la stringa non era corretta, salto per rieseguire il ciclo
+	#altrimenti significa che posso continuare
+	move $t2, $v1	# $t2 = numero digitato dall'utente
 
 	#se arrivo qua la scelta è corretta
 	move $v0, $t2
@@ -453,17 +559,28 @@ insertTask:
 	li $v0, 4
      	la $a0, strInsPriorita
       	syscall
-      	 # l'utente digita un'opzione
-        li $v0, 5		# legge intero digitato
+      	
+      	# l'utente digita un'opzione
+        li $v0, 8		# legge intero digitato
+        la $a0, bufferChoice
+        li $a1, 3
 	syscall
-	move $t2, $v0   	# $t2 = opzione digitata
-
-	# controllo validità della scelta
-	slt  $t0, $t2, $zero	# $t0=1 se scelta < 0
-	bne  $t0, $zero, choice_err_priorita # errore se $t0==1
-	li   $t0, 9
-	sle  $t0, $t2, $t0	#$t0=1 se scelta<=9
-	beq  $t0, $zero, choice_err_priorita # errore se $t0==0
+	
+	addi $sp, $sp, -8	# devo preservare l'indirizzo di ritorno e $t1=puntatore di scorrimento del task
+	sw $ra, 0($sp)
+	sw $t1, 4($sp)
+	li $a0, 0	# $a0 e $a1 definiscono il range valido di opzioni
+	li $a1, 9	
+	jal isValid	# isValid controllerà se la stringa inserita è sintatticamente corretta,
+			# se il valore di ritorno in $v0 è uguale a 0 allora è corretta, altrimenti si ripete il ciclo
+	lw $t1, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	
+	move $t2, $v0   	# $t2 = ritorno della procedura isValid
+	bnez $t2, choice_err_priorita	# se $t2!=0 allora la stringa non era corretta, salto per rieseguire il ciclo
+	#altrimenti significa che posso continuare
+	move $t2, $v1	# $t2 = numero digitato dall'utente
 
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 0($t1)	#salvo nel record il valore inserito
@@ -476,17 +593,28 @@ insertTask:
 	li $v0, 4
      	la $a0, strInsExec
       	syscall
-      	 # l'utente digita un'opzione
-        li $v0, 5		# legge intero digitato
+      	
+      	# l'utente digita un'opzione
+        li $v0, 8		# legge intero digitato
+        la $a0, bufferChoice
+        li $a1, 3
 	syscall
-	move $t2, $v0   	# $t2 = opzione digitata
-
-	# controllo validità della scelta
-	sle  $t0, $t2, $zero	# $t0=1 se scelta <= 0
-	bne  $t0, $zero, choice_err_exec # errore se $t0==1
-	li   $t0, 99
-	sle  $t0, $t2, $t0	#$t0=1 se scelta<=99
-	beq  $t0, $zero, choice_err_exec # errore se $t0==0
+	
+	addi $sp, $sp, -8	# devo preservare l'indirizzo di ritorno e $t1=puntatore di scorrimento del task
+	sw $ra, 0($sp)
+	sw $t1, 4($sp)
+	li $a0, 1	# $a0 e $a1 definiscono il range valido di opzioni
+	li $a1, 99	
+	jal isValid	# isValid controllerà se la stringa inserita è sintatticamente corretta,
+			# se il valore di ritorno in $v0 è uguale a 0 allora è corretta, altrimenti si ripete il ciclo
+	lw $t1, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	
+	move $t2, $v0   	# $t2 = ritorno della procedura isValid
+	bnez $t2, choice_err_exec	# se $t2!=0 allora la stringa non era corretta, salto per rieseguire il ciclo
+	#altrimenti significa che posso continuare
+	move $t2, $v1	# $t2 = numero digitato dall'utente
 
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 0($t1)	#salvo nel record il valore inserito
@@ -620,7 +748,7 @@ executeTask:
 #====================================================================================
 # input: a0-> ID da cercare
 # output: v0-> indirizzo del task se trovato, altrimenti -1
-#CASI PARTICOLARI: primo nodo -> v0=head, v1= head
+# CASI PARTICOLARI: primo nodo -> v0=head, v1= head
 #		   n° nodo -> v0= n° nodo, v1= (n-1)° nodo
 #		   ultimo nodo -> v0=tail, v1= tail.prev
 searchTaskByID:
@@ -671,6 +799,8 @@ searchTaskByID:
 #====================================================================================
 #++--++--++--++--++--++-- PROCEDURA REMOVE TASK =====================================
 #====================================================================================
+# input: $a0 -> ID inserito dall'utente
+# output: void
 #L'eliminazione prevede di modificare il puntatore "prossimo nodo" del task precedente a quello da eliminare
 
 removeTask:
@@ -738,7 +868,8 @@ removeTask:
 #====================================================================================
 #++--++--++--++--++--++-- PROCEDURA CHANGE PRIORITY =================================
 #====================================================================================
-# riceve in $a0 l'ID inserito dall'utente
+# input: $a0 -> ID inserito dall'utente
+# output: void
 changePriority:
 	addi $sp, $sp, -8
 	sw $ra, 0($sp)
@@ -764,20 +895,31 @@ changePriority:
 	addi $a0, $zero, 10
 	syscall
 	li $v0, 4
-     	la $a0, strInsChangePriorita
+     	la $a0, strInsPriorita
       	syscall
-      	 # l'utente digita un'opzione
-        li $v0, 5		# legge intero digitato
-	syscall
-	move $t2, $v0   	# $t2 = opzione digitata
 
-	# controllo validità della scelta
-	beq $t2, -1, exitChangePriority	# -1 è l'opzione per uscire senza modificare niente
-	slt  $t0, $t2, $zero	# $t0=1 se scelta < 0
-	bne  $t0, $zero, choice_change_priorita # errore se $t0==1
-	li   $t0, 9
-	sle  $t0, $t2, $t0	#$t0=1 se scelta<=9
-	beq  $t0, $zero, choice_change_priorita # errore se $t0==0
+      	# l'utente digita un'opzione
+        li $v0, 8		# legge intero digitato
+        la $a0, bufferChoice
+        li $a1, 3
+	syscall
+	
+	addi $sp, $sp, -8	#devo salvare indirizzo di ritorno e $t1=indirizzo del task da modificare
+	sw $ra, 0($sp)
+	sw $t1, 4($sp)
+	move $a0, $zero	# $a0 e $a1 definiscono il range valido di opzioni
+	li $a1, 9	
+	jal isValid	# isValid controllerà se la stringa inserita è sintatticamente corretta,
+			# se il valore di ritorno in $v0 è uguale a 0 allora è corretta, altrimenti si ripete il ciclo
+	lw $t1, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	
+	move $t2, $v0   	# $t2 = ritorno della procedura isValid
+	bnez $t2, choice_change_priorita	# se $t2!=0 allora la stringa non era corretta, salto per rieseguire il ciclo
+	#altrimenti significa che posso continuare
+	move $t2, $v1	# $t2 = numero digitato dall'utente
+
 
 	#se arrivo qui il numero digitato è corretto
 	sw $t2, 4($t1)	#salvo nel record il valore inserito
