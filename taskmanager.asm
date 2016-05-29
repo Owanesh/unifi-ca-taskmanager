@@ -409,6 +409,7 @@ isValid:
 	beqz $t3, exitIsNotValid	# se $t3==0 allora il primo carattere era un invio, esco con messaggio d'errore
 	blt $t2, $a0, exitIsNotCorrect	# se $t2 < $a0 allora non appartiene al range, esco dalla procedura con messaggio d'errore
 	bgt $t2, $a1, exitIsNotCorrect	# se $t2 > $a1 allora non appartiene al range, esco dalla procedura con messaggio d'errore
+	
 	#altrimenti l'opzione digitata era corretta e posso uscire con $v0 = 0, ovvero nessun errore
 	move $v0, $zero	
 	move $v1, $t2	# $v1 = numero digitato dall'utente
@@ -416,7 +417,8 @@ isValid:
 	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
 	addi $t0, $t0, 1
 	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
-	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, perciò mi rimane solo da tornare alla procedura chiamante
+	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0,
+	# perciò mi rimane solo da tornare alla procedura chiamante
 	jr $ra
 	
 	exitIsNotCorrect:
@@ -430,7 +432,8 @@ isValid:
 	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
 	addi $t0, $t0, 1
 	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
-	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, perciò mi rimane solo da tornare alla procedura chiamante
+	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, 
+	# perciò mi rimane solo da tornare alla procedura chiamante
 	li $v0, 1	# $v0=1 perchè la stringa non era valida
 	jr $ra
 
@@ -445,7 +448,8 @@ isValid:
 	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
 	addi $t0, $t0, 1
 	sb $zero, 0($t0)	# riporto a NULL (zero) il contenuto del buffer
-	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, perciò mi rimane solo da tornare alla procedura chiamante
+	# bufferChoice è grande 3 byte, ma sicuramente l'ultimo è uguale a 0, 
+	# perciò mi rimane solo da tornare alla procedura chiamante
 	li $v0, 1	# $v0=1 perchè la stringa non era valida
 	jr $ra
 
