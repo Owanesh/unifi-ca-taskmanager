@@ -939,7 +939,7 @@ changePriority:
       	j loopInsPriorita  	# ritorna alla richiesta di inserimento priorità
 
 #====================================================================================
-#++--++--   PROCEDURA DI ORDINAMENTO PER PRIOIRTA' ===================
+#++--++--   PROCEDURA DI ORDINAMENTO PER PRIORITA' ===================
 #====================================================================================
 # $t0 = scorre la lista
 # $t1 = contatore ciclo esterno
