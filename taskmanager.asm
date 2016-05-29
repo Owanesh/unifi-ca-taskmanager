@@ -50,10 +50,12 @@ tableHead: .asciiz "|   ID   | PRIORITA'  | NOME TASK | ESECUZ. RIMANENTI |"
 # 4 byte = Priorita
 # 4 byte = Esecuzioni rimanenti
 # 4 byte = Indirizzo memoria del task successivo
-# 8 byte = Nome del task
-# TOTALE: 24 byte
+# 9 byte = Nome del task
+# TOTALE: 25 byte
 #-----------------------------------------------
-
+# ATTENZIONE: la sbrk effettuata nella insertTask prevede di allocare 25 byte
+# perchè il nome richiede MAX 8 caratteri, ma è necessario salvare anche il carattere
+# di fine stringa 0 (NULL)
 
 .text
 .globl main
@@ -532,7 +534,7 @@ exitIsEmpty:
 #====================================================================================
 insertTask:
 	li $v0, 9	# codice syscall SBRK
-	li $a0, 24	# numero di byte da allocare
+	li $a0, 25	# numero di byte da allocare
 	syscall         # chiamata sbrk: restituisce un blocco di 24 byte, puntato da v0
 	move $t1, $v0	#$t1 = $v0 = puntatore al record allocato
 	#inserisco nodo alla coda
