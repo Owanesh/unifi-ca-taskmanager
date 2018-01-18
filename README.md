@@ -16,7 +16,7 @@ Questa repository è stata creata per un esame universitario della Facoltà di I
 - MARS (MIPS Assembler and Runtime Simulator) [Download](http://courses.missouristate.edu/KenVollmar/mars/)
 
 
-![Win](https://media.giphy.com/media/mpsWzGvZJG4X6/giphy.gif)
+![joke](https://media.giphy.com/media/g79am6uuZJKSc/giphy.gif)
 
 Made with ❤️ by [Owanesh](https://github.com/Owanesh
 ) - [MatteoMauro](https://github.com/MatteoMauro) - [Milicia4](https://github.com/Milicia4)
